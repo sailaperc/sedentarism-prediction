@@ -1,21 +1,11 @@
-from numpy.random import seed
-
-seed(1)
-from tensorflow import set_random_seed
-
-set_random_seed(2)
-import pandas as pd
-import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalization, Activation, Input
 from sklearn.preprocessing import StandardScaler, PowerTransformer
-from keras.models import Sequential
-import numpy as np
 import pickle
 from tcn import compiled_tcn
+from utilfunction import *
 
 pd.options.mode.chained_assignment = None
-
 
 def get_architecture(n):
     model = Sequential()
@@ -77,7 +67,7 @@ def get_architecture(n):
                       optimizer='adam',
                       )
     elif n == 6:
-        model.add(Dense(64, input_dim=29, kernel_initializer='normal', activation='relu'))
+        model.add(Dense(64, input_dim=number_of_features, kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.2))
         model.add(Dense(32, kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.2))
@@ -85,7 +75,7 @@ def get_architecture(n):
         model.compile(loss='mae',
                       optimizer='adam',
                       )
-    print(model.summary())
+    #print(model.summary())
     return model
 
 
@@ -135,8 +125,6 @@ def series_to_supervised(df2, dropnan=True, number_of_lags=None):
 def train_all():
     ss = StandardScaler()
     for i in users:
-        if i == 50:
-            ss = PowerTransformer()
         print('Comienzan los entrenamientos con el usuario {0}'.format(i))
         userdata = get_user_data(df, i)
         train_cache[i] = {}
@@ -180,13 +168,15 @@ def train_all():
 
             print('El entrenamiendo del usuario {0} con la aquitectura {1} ha finalizado'.format(i, j))
 
+
 df = pd.read_pickle('pkl/dataset.pkl')
+
 numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
                 'numberOfConversations', 'wifiChanges',
                 'silenceLevel', 'voiceLevel', 'noiseLevel',
                 'hourSine', 'hourCosine',
                 'remainingminutes', 'pastminutes',
-                'distanceTraveled', 'locationVariance']
+                'locationVariance']
 number_of_architectures = 6
 users = [50, 31, 4]
 batch_size = {1: 64, 2: 64, 3: 64, 4: 64, 5: 64, 6: 64}
