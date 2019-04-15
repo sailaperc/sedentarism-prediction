@@ -251,7 +251,9 @@ def make_lagged_datasets(lags=None):
         ys.append(y)
     x = pd.concat(xs, axis=0)
     y = pd.concat(ys, axis=0)
-    df = x.append(y)
-    pd.to_pickle(df,'pkl/dataset_lags{0}.pkl'.format(lags))
+    df = pd.concat((x,y), axis=1)
+    df.to_pickle('pkl/dataset_lags{0}.pkl'.format(lags))
 
-make_lagged_datasets(2)
+for lag in [10,12,14]:
+    make_lagged_datasets(lag)
+
