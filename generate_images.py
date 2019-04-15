@@ -2,7 +2,6 @@ import sys
 import pickle
 import matplotlib.pyplot as plt
 
-
 def show_train_prediction(user, architecture):
     info = train_cache[user][architecture]
     model = models[user][architecture]['model']
@@ -15,7 +14,6 @@ def show_train_prediction(user, architecture):
     plt.axhline(y=1.5, color='r', linestyle=':', )
     plt.legend(loc='upper right')
     plt.savefig('Imagenes/user{0}_arch{1}__train.png'.format(user, architecture))
-
 
 def show_test_prediction(user, architecture):
     info = test_cache[user][architecture]
@@ -30,7 +28,6 @@ def show_test_prediction(user, architecture):
     plt.legend(loc='upper right')
     plt.savefig('Imagenes/user{0}_arch{1}__test.png'.format(user, architecture))
 
-
 def show_history_loss(user, architecture):
     history = models[user][architecture]['history']
     plt.close()
@@ -39,7 +36,6 @@ def show_history_loss(user, architecture):
     plt.plot(history.history['val_loss'], label='test')
     plt.legend()
     plt.savefig('Imagenes/user{0}_arch{1}_loss.png'.format(user, architecture))
-
 
 def generate_images():
     for user in users:

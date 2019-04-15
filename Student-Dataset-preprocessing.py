@@ -54,7 +54,7 @@ from sklearn import cluster
 import math
 import matplotlib.pyplot as plt
 from scipy.stats import boxcox
-
+'''
 # prepare activity data
 createSensingTable('activity')
 createSensingTable('audio')
@@ -66,7 +66,7 @@ createSensingTable('phonecharge')
 createSensingTable('calendar')
 createSensingTable('wifi_location')
 createSensingTable('conversation')
-
+'''
 
 
 sdata = pd.read_csv('processing/activity.csv')

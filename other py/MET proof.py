@@ -1,20 +1,10 @@
-#chequear bien usuario 52
-# probar sacando la cantidad de logs de cada actividad
 from utilfunction import *
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import LabelEncoder
 from scipy.stats.stats import pearsonr
 import math
-#sns.set()
-#sns.set_style("ticks")
-#sns.despine()
-df = pd.read_pickle('sedentarismdata.pkl')
-df = delete_user(df,52)
-df = METcalculation(df)
-#df = delete_sleep_hours(df)
 
-df['slevel'] = df['slevel'].astype('float')
+df = pd.read_pickle('pkl/dataset.pkl')
 
 def get_hour_labels():
     hours = []
@@ -26,14 +16,16 @@ def get_hour_labels():
         hours.append(str)
     return hours
 
-
-def show_graph(data, metric, user=-1):
+def show_heatmap(data, metric, user=-1):
     plt.close()
     if user>=0:
         dfuser = get_user_data(data, user)
     else: dfuser=data
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
+    dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
     userdata = dfuser.groupby(['dayofweek', 'hourofday'])['slevel']
+
     if metric=='Mean':
         userdata = userdata.mean()
         userdata = userdata.reset_index()
@@ -53,20 +45,20 @@ def show_graph(data, metric, user=-1):
     plt.show()
 
 
-show_graph(df,'Mean')
-show_graph(df, 'Standard Deviation')
+show_heatmap(df,'Mean')
+show_heatmap(df, 'Standard Deviation')
 
-show_graph(df,'Mean', 45)
-show_graph(df,  'Standard Deviation', 45)
+show_heatmap(df,'Mean', 51)
+show_heatmap(df,  'Standard Deviation', 51)
 
-show_graph(df,'Mean', 25)
-show_graph(df,  'Standard Deviation', 25)
+show_heatmap(df,'Mean', 25)
+show_heatmap(df,  'Standard Deviation', 25)
 
 
 
 for u in df.index.get_level_values(0).drop_duplicates():
-    show_graph(df,'Mean', u)
-    show_graph(df, 'Standard Deviation', u)
+    show_heatmap(df,'Mean', u)
+    show_heatmap(df, 'Standard Deviation', u)
 
 corrs = []
 for u in df.index.get_level_values(0).drop_duplicates():
@@ -96,6 +88,6 @@ user = get_user_data(df, 41)
 for m in np.arange(3,6):
     d = user.loc[user.index.get_level_values(1).month==m]
     print(d.shape)
-    show_graph(d, 'Mean')
-    show_graph(d, 'Standard Deviation')
+    show_heatmap(d, 'Mean')
+    show_heatmap(d, 'Standard Deviation')
 """
