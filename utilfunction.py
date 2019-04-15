@@ -130,16 +130,15 @@ def live_one_out_classification(df, model):
     return f1
 
 def shift_hours(df, n, columns=None):
-    print('Shifting ', n, 'hours.')
     dfcopy = df.copy().sort_index()
     if columns is None:
-        columns=df.columns
+        columns = df.columns
     for ind, row in dfcopy.iterrows():
         try:
             dfcopy.loc[(ind[0], ind[1]), columns] = dfcopy.loc[(ind[0], ind[1] + pd.DateOffset(hours=n)), columns]
         except KeyError:
             dfcopy.loc[(ind[0], ind[1]), columns] = np.nan
-    print(dfcopy.isna().sum())
+    # print(dfcopy.isna().sum())
     dfcopy.dropna(inplace=True)
     return dfcopy
 
@@ -218,3 +217,41 @@ def make_dataset():
     df = makeDummies(df)
     df = METcalculation(df)
     pd.to_pickle(df, 'pkl/dataset.pkl')
+
+def series_to_supervised(df2, dropnan=True, number_of_lags=None):
+    lags = range(number_of_lags, 0, -1)
+    columns = df2.columns
+    n_vars = df2.shape[1]
+    data, names = list(), list()
+    print('Generating {0} time-lags...'.format(number_of_lags))
+    # input sequence (t-n, ... t-1)
+    for i in lags:
+        data.append(shift_hours(df2, i, df2.columns))
+        names += [('{0}(t-{1})'.format(columns[j], i)) for j in range(n_vars)]
+    data.append(df2)
+    names += [('{0}(t)'.format(columns[j])) for j in range(n_vars)]
+
+    # put it all together
+    agg = pd.concat(data, axis=1)
+    agg.columns = names
+    # drop rows with NaN values
+    if dropnan:
+        agg.dropna(inplace=True)
+    x = agg.iloc[:, 0:number_of_lags* n_vars]
+    y = agg.iloc[:, -1]
+    return x,y
+
+
+def make_lagged_datasets(lags=None):
+    df = pd.read_pickle('pkl/dataset.pkl')
+    xs, ys = list(), list()
+    for i in df.index.get_level_values(0).drop_duplicates():
+        x, y = series_to_supervised(get_user_data(df, i), number_of_lags=lags)
+        xs.append(x)
+        ys.append(y)
+    x = pd.concat(xs, axis=0)
+    y = pd.concat(ys, axis=0)
+    df = x.append(y)
+    pd.to_pickle(df,'pkl/dataset_lags{0}.pkl'.format(lags))
+
+make_lagged_datasets(2)
