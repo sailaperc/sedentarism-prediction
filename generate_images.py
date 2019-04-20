@@ -48,9 +48,10 @@ def generate_images():
 
 
 number_of_architectures = 6
-users = [50, 31, 4]
+users = [3, 2, 57]
 train_cache = pickle.load(open('pkl/train_cache.pkl', 'rb'))
 test_cache = pickle.load(open('pkl/test_cache.pkl', 'rb'))
 models = pickle.load(open('pkl/models.pkl', 'rb'))
 generate_images()
+
 

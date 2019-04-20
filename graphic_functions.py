@@ -8,10 +8,11 @@ from matplotlib import colors
 
 df = pd.read_pickle('./pkl/dataset.pkl')
 
-def show_user_activity(df, user, mindate, maxdate, title=''):
+def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
     data = get_user_data(df, user)
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
+    print(data.shape)
     xlabels = mdates.date2num(data.index.get_level_values(1))
     diff = len(pd.date_range(mindate,maxdate,freq='h',closed='left'))- data.shape[0]
     if diff>0:

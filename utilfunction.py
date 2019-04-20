@@ -14,8 +14,8 @@ from keras.layers import Dense, BatchNormalization,Activation
 from haversine import haversine
 from keras import backend as K
 import numpy
+from scipy.stats.stats import pearsonr
 
-K.tensorflow_backend._get_available_gpus()
 numpy.random.seed(7)
 import numpy
 
@@ -210,6 +210,7 @@ def delete_sleep_hours(df):
     return dfcopy.loc[(dfcopy['slevel'] >= 1.5) |
                       ((dfcopy.index.get_level_values(1).hour<22) &
                        (dfcopy.index.get_level_values(1).hour>5))]
+#saco horas oscuras
 
 def make_dataset():
     df = pd.read_pickle('pkl/sedentarismdata.pkl')
@@ -241,7 +242,6 @@ def series_to_supervised(df2, dropnan=True, number_of_lags=None):
     y = agg.iloc[:, -1]
     return x,y
 
-
 def make_lagged_datasets(lags=None):
     df = pd.read_pickle('pkl/dataset.pkl')
     xs, ys = list(), list()
@@ -254,6 +254,22 @@ def make_lagged_datasets(lags=None):
     df = pd.concat((x,y), axis=1)
     df.to_pickle('pkl/dataset_lags{0}.pkl'.format(lags))
 
-for lag in [10,12,14]:
-    make_lagged_datasets(lag)
+def generate_MET_stadistics(df):
+    things = list()
+    for u in df.index.get_level_values(0).drop_duplicates():
+        dfuser = get_user_data(df, u)
+        aux = dfuser.droplevel(0).loc[:, 'slevel']
+        idx = pd.date_range('2013-03-27 04:00:00', '2013-06-01 3:00:00', freq='h')
+        d = pd.DataFrame(index=idx)
+        d['slevel'] = aux
+        n = d.isna().sum()[0]
+        delete_sleep_hours(dfuser)
+        dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
+        dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
+        stats = dfuser.groupby(['dayofweek', 'hourofday'])['slevel'].agg(['mean', 'std']).dropna()
+        corr = pearsonr(stats['mean'], stats['std'])[0]
 
+        things.append([u, stats['mean'].mean(), stats['std'].mean(), corr, n])
+        # corrs.append(corr)
+
+    return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things)
