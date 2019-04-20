@@ -133,7 +133,7 @@ numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
                 'remainingminutes', 'pastminutes',
                 'locationVariance']
 number_of_architectures = 6
-users = [3, 2, 57]
+users = [3, 2, 57 ]
 batch_size = {1: 64, 2: 64, 3: 64, 4: 64, 5: 64, 6: 64}
 time_lags = {1: 8, 2: 12, 3: 12, 4: 8, 5: 4, 6: 1}
 epochs = {1: 256, 2: 128, 3: 128, 4: 64, 5: 128, 6: 256}
