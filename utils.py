@@ -44,6 +44,12 @@ def get_user_data(data, userId):
     except KeyError:
         print('El usuario ', userId, ' no existe.')
 
+def get_not_user_data(data, userId):
+    try:
+        return data.loc[data.index.get_level_values(0) != userId].copy()
+    except KeyError:
+        print('El usuario ', userId, ' no existe.')
+
 def get_X_y_regression(df):
     dfcopy = df.copy()
     features = [col for col in dfcopy.columns if 'slevel' != col]
@@ -219,12 +225,12 @@ def make_dataset():
     df = METcalculation(df)
     pd.to_pickle(df, 'pkl/dataset.pkl')
 
-def series_to_supervised(df2, dropnan=True, number_of_lags=None):
-    lags = range(number_of_lags, 0, -1)
+def series_to_supervised(df2, dropnan=True, number_of_lags=None, period=1):
+    lags = range(period * number_of_lags, 0, -period)
     columns = df2.columns
     n_vars = df2.shape[1]
     data, names = list(), list()
-    print('Generating {0} time-lags...'.format(number_of_lags))
+    print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
     for i in lags:
         data.append(shift_hours(df2, i, df2.columns))
@@ -235,24 +241,25 @@ def series_to_supervised(df2, dropnan=True, number_of_lags=None):
     # put it all together
     agg = pd.concat(data, axis=1)
     agg.columns = names
-    # drop rows with NaN values
+    # drop rows w   ith NaN values
     if dropnan:
         agg.dropna(inplace=True)
     x = agg.iloc[:, 0:number_of_lags* n_vars]
     y = agg.iloc[:, -1]
     return x,y
 
-def make_lagged_datasets(lags=None):
+def make_lagged_datasets(lags=None, period=1):
     df = pd.read_pickle('pkl/dataset.pkl')
     xs, ys = list(), list()
     for i in df.index.get_level_values(0).drop_duplicates():
-        x, y = series_to_supervised(get_user_data(df, i), number_of_lags=lags)
+        x, y = series_to_supervised(get_user_data(df, i), number_of_lags=lags, period = period)
         xs.append(x)
         ys.append(y)
     x = pd.concat(xs, axis=0)
     y = pd.concat(ys, axis=0)
     df = pd.concat((x,y), axis=1)
-    df.to_pickle('pkl/dataset_lags{0}.pkl'.format(lags))
+    df.to_pickle('pkl/dataset_lags{0}_period{1}.pkl'.format(lags, period))
+    del df
 
 def generate_MET_stadistics(df):
     things = list()
@@ -271,5 +278,14 @@ def generate_MET_stadistics(df):
 
         things.append([u, stats['mean'].mean(), stats['std'].mean(), corr, n])
         # corrs.append(corr)
+    return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things).sort_values('met')
 
-    return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things)
+#df = pd.read_pickle('pkl/dataset.pkl')
+#d = generate_MET_stadistics(df)
+
+if __name__ == '__main__':
+    for i in range(14,0,-1):
+        for j in [24,12,6,1]:
+            print(i,j)
+            make_lagged_datasets(i,j)
+
