@@ -3,7 +3,7 @@ from keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalizati
 from sklearn.preprocessing import StandardScaler, PowerTransformer
 import pickle
 from tcn import compiled_tcn
-from utilfunction import *
+from utils import *
 from tcn import compiled_tcn
 import matplotlib.pyplot as plt
 from keras.optimizers import Adam, Nadam

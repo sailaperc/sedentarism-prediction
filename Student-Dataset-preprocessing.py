@@ -49,7 +49,7 @@ activitymajor
 hay 14420.575126 en promedio de muestros de actividad por hora
 '''
 from sklearn.preprocessing import LabelEncoder
-from utilfunction import *
+from utils import *
 from sklearn import cluster
 import math
 import matplotlib.pyplot as plt

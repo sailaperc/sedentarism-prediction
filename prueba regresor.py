@@ -4,7 +4,7 @@ from sklearn.model_selection import train_test_split
 from keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalization, Activation, Input, AveragePooling1D, GlobalAveragePooling1D
 from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from tcn import compiled_tcn
-from utilfunction import *
+from utils import *
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error,mean_squared_error
 pd.options.mode.chained_assignment = None

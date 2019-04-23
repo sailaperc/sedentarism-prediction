@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from utilfunction import *
+from utils import *
 from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.naive_bayes import GaussianNB, BernoulliNB
 import numpy

@@ -5,7 +5,7 @@ from keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalizati
 from sklearn.preprocessing import StandardScaler, PowerTransformer
 import pickle
 from tcn import compiled_tcn
-from utilfunction import *
+from utils import *
 import os
 
 pd.options.mode.chained_assignment = None

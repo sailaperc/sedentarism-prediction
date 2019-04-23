@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from utilfunction import get_user_data
+from utils import get_user_data
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
@@ -65,14 +65,16 @@ def plot_heatmap(metric, user=-1):
     if user>=0:
         dfuser = get_user_data(df, user)
     else: dfuser=df
+    dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
+    dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     userdata = dfuser.groupby(['dayofweek', 'hourofday'])['slevel']
-    if metric=='Mean':
+    if metric=='mean':
         userdata = userdata.mean()
         userdata = userdata.reset_index()
         userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
         sns.heatmap(userdata, vmin=1.3, cmap='RdBu_r')
-    elif metric=='Standard Deviation':
+    elif metric=='std':
         userdata = userdata.std()
         userdata = userdata.reset_index()
         userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')

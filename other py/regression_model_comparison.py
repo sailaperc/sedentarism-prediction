@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from utilfunction import *
+from utils import *
 from sklearn import linear_model
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler

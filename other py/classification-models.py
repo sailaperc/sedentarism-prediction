@@ -4,7 +4,7 @@ from keras.utils import to_categorical
 from keras.optimizers import SGD
 import pandas as pd
 import numpy as np
-from utilfunction import *
+from utils import *
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
