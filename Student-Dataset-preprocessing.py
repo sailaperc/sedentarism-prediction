@@ -50,10 +50,7 @@ hay 14420.575126 en promedio de muestros de actividad por hora
 '''
 from sklearn.preprocessing import LabelEncoder
 from utils import *
-from sklearn import cluster
-import math
-import matplotlib.pyplot as plt
-from scipy.stats import boxcox
+
 '''
 # prepare activity data
 createSensingTable('activity')
@@ -68,15 +65,21 @@ createSensingTable('wifi_location')
 createSensingTable('conversation')
 '''
 
+freq = '30min'
+
+a = pd.datetime(2016,3,11,13,45,32)
+b = pd.Series([a])
+b.dt.floor(freq)
+
+
 
 sdata = pd.read_csv('processing/activity.csv')
 sdata.columns = ['time', 'activityId', 'userId']
 sdata = sdata.loc[sdata['activityId'] != 3]
-sdata['time'] = pd.to_datetime(sdata['time'], unit='s').dt.floor('h')
-
+sdata['time'] = sdata['time'].dt.floor(freq)
 s = pd.DataFrame(index = pd.MultiIndex.from_product(iterables= [sdata['userId'].drop_duplicates(),
                                                     pd.date_range('2013-03-27 04:00:00', '2013-06-01 3:00:00',
-                                                                  freq='h')],
+                                                                  freq=freq)],
                                                     names = ['userId', 'time']))
 
 sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
@@ -86,7 +89,6 @@ s.loc[:, 'stationaryLevel'] = sdata.groupby(['userId', 'time'])['act_0'].mean()
 s.loc[:, 'walkingLevel'] = sdata.groupby(['userId', 'time'])['act_1'].mean()
 s.loc[:, 'runningLevel'] = sdata.groupby(['userId', 'time'])['act_2'].mean()
 s.dropna(how='all', inplace=True)
-s.fillna(0, inplace=True)
 
 # 2013-03-27 04:00:00
 # 2013-06-01 3:00:00
@@ -112,7 +114,7 @@ s['remainingminutes'] = 24*60 - s['pastminutes']
 adata = pd.read_csv('processing/audio.csv')
 adata.columns = ['time', 'audioId', 'userId']
 adata['time'] = pd.to_datetime(adata['time'], unit='s')
-adata['time'] = adata['time'].dt.floor('h')
+adata['time'] = adata['time'].dt.floor(freq)
 
 # audiomajor
 # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
@@ -137,7 +139,7 @@ s.fillna(0, inplace=True)
 # latitude and longitude mean and std
 gpsdata = pd.read_csv('processing/gps.csv')
 gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
-gpsdata['time'] = gpsdata['time'].dt.floor('h')
+gpsdata['time'] = gpsdata['time'].dt.floor(freq)
 
 
 #gpsdata.loc[gpsdata['travelstate'].isna() & gpsdata['speed']>0, 'travelstate'] = 'moving'
@@ -158,13 +160,13 @@ s['locationVariance'].fillna(0,inplace=True)
 
 # prepare charge data
 chargedata = pd.read_csv('processing/phonecharge.csv')
-chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor('h')
-chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor('h')
+chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor(freq)
+chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor(freq)
 
 #isCharging
 s['isCharging'] = False
 for index, t in chargedata.iterrows() :
-    for date in pd.date_range(start=t['start'], end=t['end'], freq='H'):
+    for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
         try:
             s.loc[[(t['userId'], date)], 'isCharging'] = True
         except KeyError:
@@ -172,14 +174,14 @@ for index, t in chargedata.iterrows() :
 
 # prepare lock data
 lockeddata = pd.read_csv('processing/phonelock.csv')
-lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor('h')
-lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor('h')
+lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor(freq)
+lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor(freq)
 
 
 #isLocked
 s['isLocked'] = False
 for index, t in lockeddata.iterrows() :
-    for date in pd.date_range(start=t['start'], end=t['end'], freq='H'):
+    for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
         try:
             s.loc[[(t['userId'], date)], 'isLocked'] = True
         except KeyError:
@@ -187,13 +189,13 @@ for index, t in lockeddata.iterrows() :
 
 # prepare dark data
 darkdata = pd.read_csv('processing/dark.csv')
-darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor('h')
-darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor('h')
+darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor(freq)
+darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor(freq)
 
 #isInDark
 s['isInDark'] = False
 for index, t in darkdata.iterrows() :
-    for date in pd.date_range(start=t['start'], end=t['end'], freq='H'):
+    for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
         try:
             s.loc[[(t['userId'], date)], 'isInDark'] = True
         except KeyError:
@@ -203,8 +205,8 @@ for index, t in darkdata.iterrows() :
 
 # prepare conversation data
 conversationData = pd.read_csv('processing/conversation.csv')
-conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor('h')
-conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor('h')
+conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor(freq)
+conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor(freq)
 
 s['numberOfConversations'] = 0
 for index, t in conversationData.iterrows():
@@ -214,8 +216,8 @@ for index, t in conversationData.iterrows():
         except KeyError:
             pass
     else:
-        dates = pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq='H')
-        for date in pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq='H'):
+        dates = pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq)
+        for date in pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq):
             try:
                 s.loc[[(t['userId'], date)], 'cantConversation'] += 1
             except KeyError:
@@ -284,7 +286,7 @@ for ind, row in s.iterrows():
 
 calendardata = pd.read_csv('processing/calendar.csv')
 calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
-calendardata['time'] = calendardata['time'].dt.floor('h')
+calendardata['time'] = calendardata['time'].dt.floor(freq)
 calendardata = calendardata.set_index(['userId', 'time'])
 
 s['hasCalendarEvent'] = False
@@ -298,7 +300,7 @@ s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
 # de sedentarismo
 
 wifidata = pd.read_csv('processing/wifi_location.csv')
-wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor('h')
+wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor(freq)
 wifidataIn = wifidata.loc[wifidata['location'].str.startswith('in')]
 label_encoder = LabelEncoder()
 integer_encoded = label_encoder.fit_transform(wifidataIn['location'].values)
@@ -324,4 +326,4 @@ s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
 #a = wifidataIn.groupby(['userId', 'time'])['location']
 #wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
 
-s.to_pickle('pkl/sedentarismdata.pkl')
+s.to_pickle('pkl/sedentarismdata_gran30m.pkl')
