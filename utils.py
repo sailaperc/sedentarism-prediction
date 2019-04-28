@@ -1,23 +1,25 @@
 from collections import Counter
+
+import numpy
+import numpy as np
 import pandas as pd
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import cross_val_score, cross_validate
+from haversine import haversine
+from keras.layers import Dense, BatchNormalization, Activation
+from keras.models import Sequential
+from scipy.stats.stats import pearsonr
+from sklearn.compose import ColumnTransformer
 from sklearn.metrics import mean_squared_error, f1_score
 from sklearn.model_selection import LeaveOneGroupOut
+from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import cross_val_score, cross_validate
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
-import numpy as np
-from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import MinMaxScaler
-from keras.utils import to_categorical
-from keras.models import Sequential
-from keras.layers import Dense, BatchNormalization,Activation
-from haversine import haversine
-from keras import backend as K
-import numpy
-from scipy.stats.stats import pearsonr
+from sklearn.preprocessing import StandardScaler
+pd.options.mode.chained_assignment = None
 
 numpy.random.seed(7)
-import numpy
+
 
 def createSensingTable(sensor):
     path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
@@ -218,24 +220,32 @@ def delete_sleep_hours(df):
                        (dfcopy.index.get_level_values(1).hour>5))]
 #saco horas oscuras
 
-def make_dataset():
-    df = pd.read_pickle('pkl/sedentarismdata.pkl')
+def make_dataset(gran='1h'):
+    df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
     df = delete_user(df, 52)
     df = makeDummies(df)
     df = METcalculation(df)
-    pd.to_pickle(df, 'pkl/dataset.pkl')
+    pd.to_pickle(df, 'pkl/dataset_gran{0}.pkl'.format(gran))
 
-def series_to_supervised(df2, dropnan=True, number_of_lags=None, period=1):
+def get_dataset(gran='1h', with_dummies=False  ):
+    df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
+    df = delete_user(df, 52)
+    if with_dummies:
+        df = makeDummies(df)
+    df = METcalculation(df)
+    return df
+
+def series_to_supervised(df, dropnan=True, number_of_lags=None, period=1):
     lags = range(period * number_of_lags, 0, -period)
-    columns = df2.columns
-    n_vars = df2.shape[1]
+    columns = df.columns
+    n_vars = df.shape[1]
     data, names = list(), list()
-    print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
+    #print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
-    for i in lags:
-        data.append(shift_hours(df2, i, df2.columns))
+    for i in range(len(lags), 0, -1):
+        data.append(shift_hours(df, lags[i-1], df.columns))
         names += [('{0}(t-{1})'.format(columns[j], i)) for j in range(n_vars)]
-    data.append(df2)
+    data.append(df)
     names += [('{0}(t)'.format(columns[j])) for j in range(n_vars)]
 
     # put it all together
@@ -248,8 +258,8 @@ def series_to_supervised(df2, dropnan=True, number_of_lags=None, period=1):
     y = agg.iloc[:, -1]
     return x,y
 
-def make_lagged_datasets(lags=None, period=1):
-    df = pd.read_pickle('pkl/dataset.pkl')
+def make_lagged_datasets(lags=None, period=1, gran='1h'):
+    df = pd.read_pickle('pkl/dataset_gran{0}.pkl'.format(gran))
     xs, ys = list(), list()
     for i in df.index.get_level_values(0).drop_duplicates():
         x, y = series_to_supervised(get_user_data(df, i), number_of_lags=lags, period = period)
@@ -258,7 +268,7 @@ def make_lagged_datasets(lags=None, period=1):
     x = pd.concat(xs, axis=0)
     y = pd.concat(ys, axis=0)
     df = pd.concat((x,y), axis=1)
-    df.to_pickle('pkl/dataset_lags{0}_period{1}.pkl'.format(lags, period))
+    df.to_pickle('pkl/datasets/gran{2}_period{1}_lags{0}.pkl'.format(lags, period,gran))
     del df
 
 def generate_MET_stadistics(df):
@@ -280,12 +290,57 @@ def generate_MET_stadistics(df):
         # corrs.append(corr)
     return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things).sort_values('met')
 
+def get_data(personal, lags, period, gran,user=-1):
+    data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format(gran,period,lags))
+    if personal:
+        data = get_user_data(data, user)
+    return data
+
+def split_x_y(data, personal, lags, period, gran, tresd, user=-1):
+    x = data.iloc[:, 0:-1]
+    y = data.iloc[:, -1]
+
+    ss = StandardScaler()
+    to_standarize = []
+    numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
+                    'numberOfConversations', 'wifiChanges',
+                    'silenceLevel', 'voiceLevel', 'noiseLevel',
+                    'hourSine', 'hourCosine',
+                    'remainingminutes', 'pastminutes',
+                    'locationVariance']
+
+    for col in numeric_cols:
+        for lag in range(1, lags+1):
+            to_standarize.append(col + '(t-{0})'.format(lag))
+
+    if personal:
+        x_test = get_user_data(x, user)
+        x_train = get_not_user_data(x, user)
+        y_test = get_user_data(y, user)
+        y_train = get_not_user_data(y, user)
+    else:
+        x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
+
+    x_train.loc[:, to_standarize] = ss.fit_transform(x_train[to_standarize])
+    x_test.loc[:, to_standarize] = ss.transform(x_test[to_standarize])
+    x_train, y_train, x_test, y_test = x_train.values.astype("float32"), y_train.values.astype("float32"), \
+                                       x_test.values.astype("float32"), y_test.values.astype("float32")
+
+    return x_train,y_train,x_test,y_test
+
 #df = pd.read_pickle('pkl/dataset.pkl')
 #d = generate_MET_stadistics(df)
 
 if __name__ == '__main__':
-    for i in range(14,0,-1):
-        for j in [24,12,6,1]:
-            print(i,j)
-            make_lagged_datasets(i,j)
+    for gran in ['30m']:
+        max = 10
+        r = range(max, 0, -1)
+        for period in [2,1]:
+            for lags in r:
+                print('gran',gran,'lags', lags, ' period ', period)
+                make_lagged_datasets(lags,period,gran)
+            max += 2
+            r = range(max,0,-1)
+
+
 
