@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from utils import get_user_data
+from utils import get_user_data, get_dataset
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
 
-df = pd.read_pickle('./pkl/dataset.pkl')
+df = pd.read_pickle('./pkl/dataset_gran1h.pkl')
 
 def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
     data = get_user_data(df, user)
@@ -85,6 +85,64 @@ def plot_heatmap(metric, user=-1):
     plt.yticks(np.arange(0.5,7.5), days, rotation='horizontal')
     plt.xticks(np.arange(0.5,24.5),get_hour_labels(), rotation='vertical')
 
+    plt.show()
+
+def plot_heatmap_hor():
+    df = get_dataset()
+    metric = 'mean'
+
+    df['hourofday'] = df.index.get_level_values(1).hour
+    df['dayofweek'] = df.index.get_level_values(1).dayofweek
+    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+
+    users = [3,2,57]
+
+    fig, axes = plt.subplots(
+            nrows=1, ncols=4,
+            figsize=(15,5.4),
+            gridspec_kw={'width_ratios':[15,15,15,1]}
+            )
+
+    fig.text(0.5, 0, 'Day of week', ha='center', fontsize=14)
+    fig.text(0, .5, 'Hour of day', va='center', rotation='vertical', fontsize=14)
+
+
+    cbar_ax = axes[-1]
+
+    for i in range(0,3):
+        user = users[i]
+        ax = axes[i]
+        userdata = get_user_data(df,user)
+        userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
+        userdata = userdata.mean()
+        userdata = userdata.reset_index()
+        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
+        sns.heatmap(userdata,
+                    ax=ax,
+                    vmin=1.3, vmax=2,
+                    cmap='RdBu_r',
+                    cbar= True if i==2 else False,
+                    linewidths=.05,
+                    cbar_ax = cbar_ax if i==2 else None,
+                    )
+        ax.set_title('User {0}'.format(user))
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        plt.sca(ax)
+        if i==0: plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
+        else: ax.tick_params(labelleft = False, tick1On=False)
+        plt.xticks(np.arange(0.5, 24.5),
+                   get_hour_labels(),
+                   rotation='vertical')
+        plt.subplots_adjust(bottom=.15)
+
+
+
+
+    #plt.xlabel('Day of week', fontsize=18, labelpad=23)
+    #plt.ylabel('Hour of day', fontsize=18, labelpad=45)
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.show()
 
 def plot_by_week(user):
