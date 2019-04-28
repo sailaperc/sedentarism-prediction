@@ -326,4 +326,5 @@ s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
 #a = wifidataIn.groupby(['userId', 'time'])['location']
 #wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
 
-s.to_pickle('pkl/sedentarismdata_gran30m.pkl')
+s.to_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))
+d = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))

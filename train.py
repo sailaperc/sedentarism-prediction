@@ -19,7 +19,7 @@ def get_architecture(n):
         model.add(Dropout(.8))
         model.add(Dense(1, activation='linear'))
         model.compile(loss='mae',
-                      optimizer='adam',
+                      optimizer='adam'
                       )
     elif n == 2:
         model.add(LSTM(64, input_shape=input_shape, return_sequences=True))
@@ -28,8 +28,7 @@ def get_architecture(n):
         model.add(Dropout(.6))
         model.add(Dense(1, activation='linear'))
         model.compile(loss='mae',
-                      optimizer='adam',
-                      shuffle=False
+                      optimizer='adam'
                       )
     elif n == 3:
         model.add(LSTM(128, input_shape=input_shape, return_sequences=True))
@@ -46,9 +45,7 @@ def get_architecture(n):
         model.add(Activation('relu'))
         model.add(Dense(1, activation='linear'))
         model.compile(loss='mae',
-                      optimizer='adam',
-                      shuffle=False
-
+                      optimizer='adam'
                       )
     elif n == 4:
         model = compiled_tcn(return_sequences=False,
@@ -70,14 +67,12 @@ def get_architecture(n):
         model.add(Flatten())
         model.add(Dense(1, activation='linear'))
         model.compile(loss='mae',
-                      optimizer='adam',
-                      shuffle=False
+                      optimizer='adam'
                       )
     elif n == 6:
         model.add(Dense(1, input_dim=number_of_features, activation='linear'))
         model.compile(loss='mae',
-                      optimizer='adam',
-                      shuffle=False
+                      optimizer='adam'
                       )
     #print(model.summary())
     return model
