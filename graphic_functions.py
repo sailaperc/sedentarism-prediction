@@ -87,25 +87,24 @@ def plot_heatmap(metric, user=-1):
 
     plt.show()
 
-def plot_heatmap_hor():
+def plot_heatmaps_mean():
     df = get_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
-    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 
     users = [3,2,57]
 
     fig, axes = plt.subplots(
             nrows=1, ncols=4,
-            figsize=(15,5.4),
+            figsize=(15,4.4),
             gridspec_kw={'width_ratios':[15,15,15,1]}
             )
 
-    fig.text(0.5, 0, 'Day of week', ha='center', fontsize=14)
-    fig.text(0, .5, 'Hour of day', va='center', rotation='vertical', fontsize=14)
 
 
     cbar_ax = axes[-1]
@@ -126,7 +125,7 @@ def plot_heatmap_hor():
                     linewidths=.05,
                     cbar_ax = cbar_ax if i==2 else None,
                     )
-        ax.set_title('User {0}'.format(user))
+        ax.set_title('Usuario {0}'.format(user))
         ax.set_ylabel('')
         ax.set_xlabel('')
         plt.sca(ax)
@@ -134,16 +133,87 @@ def plot_heatmap_hor():
         else: ax.tick_params(labelleft = False, tick1On=False)
         plt.xticks(np.arange(0.5, 24.5),
                    get_hour_labels(),
-                   rotation='vertical')
-        plt.subplots_adjust(bottom=.15)
+                   rotation='vertical',
+                   )
+        ax.set_xlabel('Hora del día',fontsize   =10)
+        ax.tick_params(axis='x', which='major', labelsize=8)
 
 
+    #fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
+    fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
 
 
     #plt.xlabel('Day of week', fontsize=18, labelpad=23)
     #plt.ylabel('Hour of day', fontsize=18, labelpad=45)
-    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    #fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
     plt.show()
+
+def plot_heatmaps_std():
+    df = get_dataset()
+    metric = 'mean'
+
+    df['hourofday'] = df.index.get_level_values(1).hour
+    df['dayofweek'] = df.index.get_level_values(1).dayofweek
+    #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+
+
+    users = [3,2,57]
+
+    fig, axes = plt.subplots(
+            nrows=1, ncols=4,
+            figsize=(15,4.4),
+            gridspec_kw={'width_ratios':[15,15,15,1]}
+            )
+
+
+
+    cbar_ax = axes[-1]
+
+    for i in range(0,3):
+        user = users[i]
+        ax = axes[i]
+        userdata = get_user_data(df,user)
+        userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
+
+        userdata = userdata.std()
+        userdata = userdata.reset_index()
+        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
+
+        sns.heatmap(userdata,
+                    ax=ax,
+                    #vmin=1.3, vmax=2,
+                    cmap='autumn_r',
+                    cbar= True if i==2 else False,
+                    linewidths=.05,
+                    cbar_ax = cbar_ax if i==2 else None,
+                    )
+        ax.set_title('Usuario {0}'.format(user))
+        ax.set_ylabel('')
+        ax.set_xlabel('')
+        plt.sca(ax)
+        if i==0: plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
+        else: ax.tick_params(labelleft = False, tick1On=False)
+        plt.xticks(np.arange(0.5, 24.5),
+                   get_hour_labels(),
+                   rotation='vertical',
+                   )
+        ax.set_xlabel('Hora del día',fontsize   =10)
+        ax.tick_params(axis='x', which='major', labelsize=8)
+
+
+    #fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
+    fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
+
+
+    #plt.xlabel('Day of week', fontsize=18, labelpad=23)
+    #plt.ylabel('Hour of day', fontsize=18, labelpad=45)
+    #fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
+    plt.show()
+
+
 
 def plot_by_week(user):
     dfu = get_user_data(df, user).droplevel(0).loc[:, 'slevel']
@@ -218,3 +288,5 @@ def plot_by_month(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
+
+plot_heatmaps_mean()
