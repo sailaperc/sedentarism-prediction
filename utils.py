@@ -227,7 +227,7 @@ def make_dataset(gran='1h'):
     df = METcalculation(df)
     pd.to_pickle(df, 'pkl/dataset_gran{0}.pkl'.format(gran))
 
-def get_dataset(gran='1h', with_dummies=False  ):
+def get_dataset(gran='1h', with_dummies=False):
     df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
     df = delete_user(df, 52)
     if with_dummies:
@@ -239,12 +239,13 @@ def series_to_supervised(df, dropnan=True, number_of_lags=None, period=1):
     lags = range(period * number_of_lags, 0, -period)
     columns = df.columns
     n_vars = df.shape[1]
+    print(lags,columns,n_vars)
     data, names = list(), list()
     #print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
     for i in range(len(lags), 0, -1):
         data.append(shift_hours(df, lags[i-1], df.columns))
-        names += [('{0}(t-{1})'.format(columns[j], i)) for j in range(n_vars)]
+        names += [('{0}(t-{1})'.format(columns[j], lags[i-1])) for j in range(n_vars)]
     data.append(df)
     names += [('{0}(t)'.format(columns[j])) for j in range(n_vars)]
 
@@ -292,55 +293,56 @@ def generate_MET_stadistics(df):
 
 def get_data(personal, lags, period, gran,user=-1):
     data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format(gran,period,lags))
-    if personal:
-        data = get_user_data(data, user)
-    return data
+    if personal: return get_user_data(data,user)
+    else: return data
 
-def split_x_y(data, personal, lags, period, gran, tresd, user=-1):
+def split_x_y(data):
     x = data.iloc[:, 0:-1]
     y = data.iloc[:, -1]
+    return x,y
 
-    ss = StandardScaler()
-    to_standarize = []
-    numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
-                    'numberOfConversations', 'wifiChanges',
-                    'silenceLevel', 'voiceLevel', 'noiseLevel',
-                    'hourSine', 'hourCosine',
-                    'remainingminutes', 'pastminutes',
-                    'locationVariance']
-
-    for col in numeric_cols:
-        for lag in range(1, lags+1):
-            to_standarize.append(col + '(t-{0})'.format(lag))
-
+def get_train_test_data(user,standarize, lags, period, gran, personal):
+    data = get_data(personal, lags, period, gran, user)
+    x,y = split_x_y(data)
     if personal:
+        x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
+    else:
         x_test = get_user_data(x, user)
         x_train = get_not_user_data(x, user)
         y_test = get_user_data(y, user)
         y_train = get_not_user_data(y, user)
-    else:
-        x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
+    if standarize:
+        ss = StandardScaler()
+        to_standarize = []
+        numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
+                        'numberOfConversations', 'wifiChanges',
+                        'silenceLevel', 'voiceLevel', 'noiseLevel',
+                        'hourSine', 'hourCosine',
+                        'remainingminutes', 'pastminutes',
+                        'locationVariance']
 
-    x_train.loc[:, to_standarize] = ss.fit_transform(x_train[to_standarize])
-    x_test.loc[:, to_standarize] = ss.transform(x_test[to_standarize])
-    x_train, y_train, x_test, y_test = x_train.values.astype("float32"), y_train.values.astype("float32"), \
-                                       x_test.values.astype("float32"), y_test.values.astype("float32")
+        for col in numeric_cols:
+            for lag in range(1, lags+1):
+                to_standarize.append(col + '(t-{0})'.format(lag))
 
-    return x_train,y_train,x_test,y_test
+        x_train.loc[:, to_standarize] = ss.fit_transform(x_train[to_standarize])
+        x_test.loc[:, to_standarize] = ss.transform(x_test[to_standarize])
+
+    x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
+    x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
+    return x_train, y_train, x_test, y_test
 
 #df = pd.read_pickle('pkl/dataset.pkl')
 #d = generate_MET_stadistics(df)
-
+'''
 if __name__ == '__main__':
     for gran in ['30m']:
-        max = 10
+        max = 5
         r = range(max, 0, -1)
-        for period in [2,1]:
+        for period in [1]:
             for lags in r:
                 print('gran',gran,'lags', lags, ' period ', period)
                 make_lagged_datasets(lags,period,gran)
-            max += 2
-            r = range(max,0,-1)
-
+'''
 
 
