@@ -4,14 +4,8 @@ import numpy
 import numpy as np
 import pandas as pd
 from haversine import haversine
-from keras.layers import Dense, BatchNormalization, Activation
-from keras.models import Sequential
 from scipy.stats.stats import pearsonr
 from sklearn.compose import ColumnTransformer
-from sklearn.metrics import mean_squared_error, f1_score
-from sklearn.model_selection import LeaveOneGroupOut
-from sklearn.model_selection import StratifiedKFold
-from sklearn.model_selection import cross_val_score, cross_validate
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MinMaxScaler
@@ -19,7 +13,6 @@ from sklearn.preprocessing import StandardScaler
 pd.options.mode.chained_assignment = None
 
 numpy.random.seed(7)
-
 
 def createSensingTable(sensor):
     path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
@@ -73,70 +66,6 @@ def get_X_y_classification(df, withActualClass=True):
     features = [col for col in dfcopy.columns if 'sclass' != col]
     return dfcopy[features].reset_index(drop=True), dfcopy['sclass'].reset_index(drop=True)
 
-def per_user_regression(df, model):
-    print('per_user_regression')
-    dfcopy = df.copy()
-    mse = []
-    for userid in df.index.get_level_values(0).drop_duplicates():
-        X, y = get_X_y_regression(get_user_data(dfcopy, userid))
-        kfold = StratifiedKFold(n_splits=10)
-        results = cross_val_score(model, X, y, cv=kfold, scoring='neg_mean_squared_error')
-        mse.append(-results.mean())
-        if userid % 10 == 0:
-            print('modelos sobre usuario ', userid, ' finalizado.')
-    return mse
-
-def live_one_out_regression(df, model):
-    print('live_one_out_regression')
-    dfcopy = df.copy()
-    mse = []
-    i = 0
-    logo = LeaveOneGroupOut()
-    groups = df.index.get_level_values(0)
-    X, y = get_X_y_regression(dfcopy)
-    for train_index, test_index in logo.split(X, y, groups):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = y[train_index], y[test_index]
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        mse.append(mean_squared_error(y_test, y_pred))
-        if i % 10 == 0:
-            print('modelos sobre usuario ', i, ' finalizado.')
-        i += 1
-    return mse
-
-def per_user_classification(df, model):
-    print('per_user_classification')
-    dfcopy = df.copy()
-    scoring = ['f1_weighted']
-    f1 = []
-    kfold = StratifiedKFold(n_splits=10)
-    for userid in df.index.get_level_values(0).drop_duplicates():
-        X, y = get_X_y_classification(get_user_data(dfcopy, userid))
-        results = cross_validate(model, X, y, cv=kfold, scoring=scoring)
-        f1.append(results['test_f1_weighted'].mean())
-        print('modelos sobre usuario ', userid, ' finalizado.')
-    return f1
-
-def live_one_out_classification(df, model):
-    dfcopy = df.copy()
-    print('live_one_out_classification')
-    i = 0
-    f1 = []
-    logo = LeaveOneGroupOut()
-    groups = df.index.get_level_values(0)
-    X, y = get_X_y_classification(dfcopy)
-    for train_index, test_index in logo.split(X, y, groups):
-        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        f1.append(f1_score(y_test, y_pred, average='weighted'))
-        if i % 10 == 0:
-            print('modelos sobre usuario ', i, ' finalizado.')
-        i += 1
-    return f1
-
 def shift_hours(df, n, columns=None):
     dfcopy = df.copy().sort_index()
     if columns is None:
@@ -178,27 +107,6 @@ def makeDummies(df):
     dummies = pd.get_dummies(dfcopy.select_dtypes(include='category'))
     dfcopy.drop(categorical_cols, inplace=True, axis=1)
     return pd.concat([dfcopy, dummies], axis=1, sort=False)
-
-def baseline_model():
-    estimator = Sequential([
-    Dense(256,input_dim=28,kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
-    BatchNormalization(),
-    Activation('relu'),
-    Dense(128, kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
-    BatchNormalization(),
-    Activation('relu'),
-    Dense(64, kernel_initializer='uniform',kernel_regularizer='l2',use_bias=False),
-    BatchNormalization(),
-    Activation('relu'),
-    Dense(32, kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
-    BatchNormalization(),
-    Activation('relu'),
-    Dense(1, activation='sigmoid')
-    ])
-    estimator.compile(loss='binary_crossentropy',
-                  optimizer='adam',
-                  metrics=['binary_accuracy'])
-    return estimator
 
 def delete_user(df,user):
     return df.copy().loc[df.index.get_level_values(0)!=user]
@@ -297,12 +205,26 @@ def get_data(personal, lags, period, gran,user=-1):
     else: return data
 
 def split_x_y(data):
-    x = data.iloc[:, 0:-1]
-    y = data.iloc[:, -1]
+    x = data.iloc[:, [data.columns.get_loc(c) for idx, c in enumerate(data.columns) if c != 'slevel(t)']]
+    y = data.iloc[:,data.columns.get_loc('slevel(t)')]
     return x,y
 
 def get_train_test_data(user,standarize, lags, period, gran, personal):
+
     data = get_data(personal, lags, period, gran, user)
+    numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
+                    'numberOfConversations', 'wifiChanges',
+                    'silenceLevel', 'voiceLevel', 'noiseLevel',
+                    'hourSine', 'hourCosine',
+                    'remainingminutes', 'pastminutes',
+                    'locationVariance']
+    to_standarize = []
+    for col in numeric_cols:
+        for lag in range(1, lags + 1):
+            to_standarize.append(col + '(t-{0})'.format(lag))
+    #aux = to_standarize.copy()
+    #aux.append('slevel(t)')
+    #data = data.loc[:,aux]
     x,y = split_x_y(data)
     if personal:
         x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
@@ -311,25 +233,15 @@ def get_train_test_data(user,standarize, lags, period, gran, personal):
         x_train = get_not_user_data(x, user)
         y_test = get_user_data(y, user)
         y_train = get_not_user_data(y, user)
-    if standarize:
-        ss = StandardScaler()
-        to_standarize = []
-        numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
-                        'numberOfConversations', 'wifiChanges',
-                        'silenceLevel', 'voiceLevel', 'noiseLevel',
-                        'hourSine', 'hourCosine',
-                        'remainingminutes', 'pastminutes',
-                        'locationVariance']
-
-        for col in numeric_cols:
-            for lag in range(1, lags+1):
-                to_standarize.append(col + '(t-{0})'.format(lag))
-
-        x_train.loc[:, to_standarize] = ss.fit_transform(x_train[to_standarize])
-        x_test.loc[:, to_standarize] = ss.transform(x_test[to_standarize])
-
     x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
     x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
+    if standarize:
+        to_standarize = [data.columns.get_loc(c) for c in to_standarize]
+        ss = StandardScaler()
+        x_train[:, to_standarize] = ss.fit_transform(x_train[:,to_standarize])
+        x_test[:, to_standarize] = ss.transform(x_test[:,to_standarize])
+
+
     return x_train, y_train, x_test, y_test
 
 #df = pd.read_pickle('pkl/dataset.pkl')
