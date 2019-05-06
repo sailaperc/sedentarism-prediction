@@ -34,7 +34,7 @@ def test_all():
             e_train = round(train_error(i, j + 1), 3)
             e_test = round(test_error(i, j + 1), 3)
             print('Usuario {0} - Arquitectura {1}'.format(i, j + 1),
-                  '- {0}'.format(metric), '(train): ', e_train, '- {0}(test)'.format(metric), e_test)
+                  '- {0}'.format(metric), '(train): ', e_train, '- {0}(test): '.format(metric), e_test)
             f.write('Usuario {0} - Arquitectura {1}'.format(i, j + 1))
             f.write('- {0}(train): '.format(metric))
             f.write(str(e_train))
@@ -47,9 +47,10 @@ def test_all():
     print('')
 
 
-users = [3, 2, 57]
-number_of_architectures = 6
-metric='mae'
+users = [50, 31, 4]
+
+number_of_architectures = 4
+metric='mse'
 test_cache = pickle.load(open('pkl/test_cache.pkl', 'rb'))
 train_cache = pickle.load(open('pkl/train_cache.pkl', 'rb'))
 models = pickle.load(open('pkl/models.pkl', 'rb'))
