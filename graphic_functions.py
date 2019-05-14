@@ -87,7 +87,7 @@ def plot_heatmap(metric, user=-1):
 
     plt.show()
 
-def plot_heatmaps_mean():
+def plot_heatmaps_mean(users):
     df = get_dataset()
     metric = 'mean'
 
@@ -95,9 +95,6 @@ def plot_heatmaps_mean():
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
-
-    users = [3,2,57]
 
     fig, axes = plt.subplots(
             nrows=1, ncols=4,
@@ -149,7 +146,7 @@ def plot_heatmaps_mean():
     plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
     plt.show()
 
-def plot_heatmaps_std():
+def plot_heatmaps_std(users):
     df = get_dataset()
     metric = 'mean'
 
@@ -157,9 +154,6 @@ def plot_heatmaps_std():
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
-
-    users = [3,2,57]
 
     fig, axes = plt.subplots(
             nrows=1, ncols=4,
@@ -212,8 +206,6 @@ def plot_heatmaps_std():
     #fig.tight_layout(rect=[0, 0.03, 1, 0.95])
     plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
     plt.show()
-
-
 
 def plot_by_week(user):
     dfu = get_user_data(df, user).droplevel(0).loc[:, 'slevel']
@@ -288,5 +280,3 @@ def plot_by_month(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
-
-plot_heatmaps_mean()

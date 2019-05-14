@@ -11,45 +11,43 @@ pd.options.mode.chained_assignment = None
 
 def get_architecture(n):
     model = Sequential()
-    input_shape = (time_lags[n], number_of_features)
     if n == 1:
         model.add(LSTM(64, input_shape=input_shape, return_sequences=True))
         model.add(Dropout(.6))
         model.add(LSTM(32, input_shape=input_shape, return_sequences=False))
         model.add(Dropout(.6))
         model.add(Dense(1, activation='linear'))
-        model.compile(loss='mae',
+        model.compile(loss=metric,
                       optimizer='adam',
                       )
     elif n == 2:
         model = compiled_tcn(return_sequences=False,
                              num_feat=number_of_features,
                              num_classes=0,
-                             nb_filters=5,
-                             kernel_size=2,
-                             dilations=[1, 2],
+                             nb_filters=8,
+                             kernel_size=1,
+                             dilations=[1,2,4],
                              # dilations=[2 ** i for i in range(2, 5)],
                              nb_stacks=1,
-                             max_len=time_lags[n],
+                             max_len=time_lags,
                              use_skip_connections=True,
                              regression=True,
-                             dropout_rate=0.4)
+                             dropout_rate=0.6)
     elif n == 3:
-        model = Sequential()
         model.add(Conv1D(32, 2, activation='relu', padding='causal', input_shape=input_shape))
         model.add(Dropout(0.7))
         model.add(Flatten())
         model.add(Dense(1, activation='linear'))
-        model.compile(loss='mae',
+        model.compile(loss=metric,
                       optimizer='adam',
                       )
     elif n==4:
-        model.add(Dense(64, input_dim=number_of_features, kernel_initializer='normal', activation='relu'))
+        model.add(Dense(64, input_dim=number_of_features*time_lags, kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.4))
         model.add(Dense(32, kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.4))
         model.add(Dense(1, kernel_initializer='normal'))
-        model.compile(loss='mae',
+        model.compile(loss=metric,
                       optimizer='adam',
                       )
     return model
@@ -67,16 +65,16 @@ def train_all():
 
             print('El entrenamiendo del usuario {0} con la aquitectura {1} está por comenzar'.format(i, j))
 
-            lags = time_lags[j]
+            lags = time_lags
             model = get_architecture(j)
 
             x_train, y_train, x_test, y_test = get_train_test_data(i,True,lags,1,'1h',True)
             if j!=4:
-                x_train = x_train.reshape(x_train.shape[0], time_lags[j], number_of_features)
-                x_test = x_test.reshape(x_test.shape[0], time_lags[j], number_of_features)
+                x_train = x_train.reshape(x_train.shape[0], time_lags, number_of_features)
+                x_test = x_test.reshape(x_test.shape[0], time_lags, number_of_features)
 
             print('{0} casos de entrenamiento. **** {1} casos para testeo.'.format(x_train.shape[0], x_test.shape[0]))
-            history = model.fit(x_train, y_train, epochs=epochs[j], batch_size=batch_size[j],
+            history = model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size,
                                 validation_data=(x_test, y_test),
                                 verbose=0)
 
@@ -109,16 +107,19 @@ numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
                 'locationVariance']
 number_of_architectures = 4
 users = [50, 31, 4]
-batch_size = {1: 64, 2: 64, 3: 64, 4:64}
-time_lags = {1: 4,  2: 4, 3: 4, 4:1}
-epochs = {1: 128, 2: 128, 3: 128, 4:256}
+batch_size = 64
+time_lags = 2
+epochs = 128
 number_of_features = data.shape[1]-1
-
+input_shape = (time_lags, number_of_features)
+metric = 'mse'
 train_cache = {}
 test_cache = {}
 models = {}
 train_all()
 
-pickle.dump(train_cache, open('pkl/train_cache.pkl', 'wb'))
-pickle.dump(test_cache, open('pkl/test_cache.pkl', 'wb'))
-pickle.dump(models, open('pkl/models.pkl', 'wb'))
+pickle.dump(train_cache, open('pkl/train_cache_{0}lags_metric_{1}.pkl'.format(time_lags,metric), 'wb'))
+pickle.dump(test_cache, open('pkl/test_cache_{0}lags_metric_{1}.pkl'.format(time_lags,metric), 'wb'))
+pickle.dump(models, open('pkl/models_{0}lags_metric_{1}.pkl'.format(time_lags,metric), 'wb'))
+
+

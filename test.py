@@ -28,7 +28,7 @@ def train_error(user, architecture):
 def test_all():
     print('')
     print('*' * 16)
-    f = open("txt/results_{0}.txt".format(datetime.datetime.now().second), "w+")
+    f = open("txt/results_{0}lags_{1}.txt".format(time_lags,metric), "w+")
     for i in users:
         for j in range(number_of_architectures):
             e_train = round(train_error(i, j + 1), 3)
@@ -48,12 +48,12 @@ def test_all():
 
 
 users = [50, 31, 4]
-
+time_lags = 2
 number_of_architectures = 4
-metric='mse'
-test_cache = pickle.load(open('pkl/test_cache.pkl', 'rb'))
-train_cache = pickle.load(open('pkl/train_cache.pkl', 'rb'))
-models = pickle.load(open('pkl/models.pkl', 'rb'))
+metric='mae'
+test_cache = pickle.load(open('pkl/test_cache_{0}lags_metric_mse.pkl'.format(time_lags,metric), 'rb'))
+train_cache = pickle.load(open('pkl/train_cache_{0}lags_metric_mse.pkl'.format(time_lags,metric), 'rb'))
+models = pickle.load(open('pkl/models_{0}lags_metric_mse.pkl'.format(time_lags,metric), 'rb'))
 
 test_all()
 
