@@ -32,7 +32,8 @@ for f in files:  # files:
     print('lags :' + str(lags) + '. period: ' + str(period) + '. gran: ' + str(gran))
 
     data = get_data(False, lags, period, gran, user)
-    x_train, y_train, x_test, y_test = get_train_test_data(user, True, lags, period, gran,True)
+    x_train, y_train, x_test, y_test = get_train_test_data(user, True, lags,
+                                                           period, gran, True)
     lr = LinearRegression()
     lr.fit(x_train,y_train)
     s = 'lags :' + str(lags) + '. period: ' + str(period) +\

@@ -218,14 +218,14 @@ def get_train_test_data(user,standarize, lags, period, gran, personal):
                     'hourSine', 'hourCosine',
                     'remainingminutes', 'pastminutes',
                     'locationVariance']
-    to_standarize = []
-    for col in numeric_cols:
-        for lag in range(1, lags + 1):
-            to_standarize.append(col + '(t-{0})'.format(lag))
+
+    to_standarize = [col + '(t-{0})'.format(lag) for lag in range(1, lags + 1) for col in numeric_cols]
+
     #aux = to_standarize.copy()
     #aux.append('slevel(t)')
     #data = data.loc[:,aux]
-    x,y = split_x_y(data)
+
+    x, y = split_x_y(data)
     if personal:
         x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
     else:
@@ -236,12 +236,11 @@ def get_train_test_data(user,standarize, lags, period, gran, personal):
     x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
     x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
     if standarize:
+        #me quedo con los indices
         to_standarize = [data.columns.get_loc(c) for c in to_standarize]
         ss = StandardScaler()
         x_train[:, to_standarize] = ss.fit_transform(x_train[:,to_standarize])
         x_test[:, to_standarize] = ss.transform(x_test[:,to_standarize])
-
-
     return x_train, y_train, x_test, y_test
 
 #df = pd.read_pickle('pkl/dataset.pkl')
@@ -256,5 +255,3 @@ if __name__ == '__main__':
                 print('gran',gran,'lags', lags, ' period ', period)
                 make_lagged_datasets(lags,period,gran)
 '''
-
-
