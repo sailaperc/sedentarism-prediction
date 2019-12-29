@@ -1,9 +1,9 @@
-from keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalization, Activation, Input
+from tensorflow.keras.layers import Conv1D, LSTM, Dropout, Dense, Flatten, BatchNormalization, Activation, Input
 from sklearn.linear_model import LinearRegression
 import pickle
 from tcn import compiled_tcn
 from utils import *
-from keras import Sequential
+from tensorflow.keras import Sequential
 
 np.random.seed(1337) # for reproducibility
 
