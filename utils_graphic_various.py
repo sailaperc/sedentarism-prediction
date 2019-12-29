@@ -87,7 +87,7 @@ def plot_heatmap(metric, user=-1):
 
     plt.show()
 
-def plot_heatmaps_mean(users):
+def plot_heatmaps_mean(users=[50,31,4]):
     df = get_dataset()
     metric = 'mean'
 
@@ -101,8 +101,6 @@ def plot_heatmaps_mean(users):
             figsize=(15,4.4),
             gridspec_kw={'width_ratios':[15,15,15,1]}
             )
-
-
 
     cbar_ax = axes[-1]
 
@@ -146,7 +144,7 @@ def plot_heatmaps_mean(users):
     plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
     plt.show()
 
-def plot_heatmaps_std(users):
+def plot_heatmaps_std(users=[50,31,4]):
     df = get_dataset()
     metric = 'mean'
 
@@ -280,3 +278,48 @@ def plot_by_month(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
+
+def show_train_prediction(user, architecture):
+    info = train_cache[user][architecture]
+    model = models[user][architecture]['model']
+    plt.close()
+    plt.figure(figsize=(15, 4))
+    plt.title('Datos de entrenamiento y predicciones para el usuario {0} con la arquitectura {1}'.format(user, architecture))
+    y_pred = model.predict(info['x_train'])
+    plt.plot(info['y_train'], label='Train')
+    plt.plot(y_pred, label='Predicción')
+    plt.axhline(y=1.5, color='r', linestyle=':', )
+    plt.legend(loc='upper right')
+    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}__train.png'.format(time_lags,user, architecture))
+
+def show_test_prediction(user, architecture):
+    info = test_cache[user][architecture]
+    model = models[user][architecture]['model']
+    plt.close()
+    plt.figure(figsize=(15, 4))
+    #plt.title('Datos de testeo y predicciones para el usuario {0} con la arquitectura {1}'.format(user, architecture))
+    y_pred = model.predict(info['x_test'])
+    plt.plot(info['y_test'], label='Prueba')
+    plt.plot(y_pred, label='Predicción')
+    plt.ylabel('MET')
+    plt.axhline(y=1.5, color='r', linestyle=':', )
+    plt.legend(loc='upper right')
+    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}__test.png'.format(time_lags,user, architecture))
+
+def show_history_loss(user, architecture):
+    history = models[user][architecture]['history']
+    plt.close()
+    plt.title('Train loss vs. Test loss of user {0} with architecture {1}'.format(user, architecture))
+    plt.plot(history.history['loss'], label='train')
+    plt.plot(history.history['val_loss'], label='test')
+    plt.legend()
+    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}_loss.png'.format(time_lags,user, architecture))
+
+def generate_prediction_images():
+    for user in users:
+        for architecture in range(1, number_of_architectures + 1):
+            print('*** Generando predicciones para el usuario {0} y la arquitectura {1}... ***'.format(user,
+                                                                                                       architecture))
+            show_train_prediction(user, architecture)
+            show_test_prediction(user, architecture)
+            show_history_loss(user, architecture)

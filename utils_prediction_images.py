@@ -38,7 +38,7 @@ def show_history_loss(user, architecture):
     plt.legend()
     plt.savefig('Imagenes/{0}lags_user{1}_arch{2}_loss.png'.format(time_lags,user, architecture))
 
-def generate_images():
+def generate_prediction_images():
     for user in users:
         for architecture in range(1, number_of_architectures + 1):
             print('*** Generando predicciones para el usuario {0} y la arquitectura {1}... ***'.format(user,
@@ -55,5 +55,3 @@ test_cache = pickle.load(open('pkl/test_cache_{0}lags_metric_{1}.pkl'.format(tim
 train_cache = pickle.load(open('pkl/train_cache_{0}lags_metric_{1}.pkl'.format(time_lags,metric), 'rb'))
 models = pickle.load(open('pkl/models_{0}lags_metric_{1}.pkl'.format(time_lags,metric), 'rb'))
 
-if __name__=='__main__':
-    generate_images()
