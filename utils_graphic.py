@@ -8,14 +8,20 @@ from matplotlib import colors
 
 df = pd.read_pickle('./pkl/dataset_gran1h.pkl')
 
+
 def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
+    '''
+    Plot the cumulative activity type of a specific user between mindate and maxdate
+    The default mindate and mindate is too broad and does not work
+    '''
+
     data = get_user_data(df, user)
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
     print(data.shape)
     xlabels = mdates.date2num(data.index.get_level_values(1))
-    diff = len(pd.date_range(mindate,maxdate,freq='h',closed='left'))- data.shape[0]
-    if diff>0:
+    diff = len(pd.date_range(mindate, maxdate, freq='h', closed='left')) - data.shape[0]
+    if diff > 0:
         print('Faltan {0} buckets!'.format(diff))
     r = data['walkingLevel'].values + data['runningLevel'].values
     w = data['walkingLevel'].values
@@ -49,32 +55,45 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     ax.legend(loc='upper right')
     plt.show()
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
+show_user_activity(35)
+
 
 def get_hour_labels():
     hours = []
-    for h in range(0,24):
-        if h<10:
+    for h in range(0, 24):
+        if h < 10:
             str = '0{0}:00'.format(h)
         else:
             str = '{0}:00'.format(h)
         hours.append(str)
     return hours
 
+
 def plot_heatmap(metric, user=-1):
+    '''
+    Plot a heatmap with entries for each day of week and hour of day combination.
+    If user is not selected the whole dataset is used to make the dataset
+    If a user is provided the heatmap is made based on the data of that particular user
+
+    The metric can be 'mean' or 'std'
+
+    '''
+
     plt.close()
-    if user>=0:
+    if user >= 0:
         dfuser = get_user_data(df, user)
-    else: dfuser=df
+    else:
+        dfuser = df
     dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
     dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
     days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     userdata = dfuser.groupby(['dayofweek', 'hourofday'])['slevel']
-    if metric=='mean':
+    if metric == 'mean':
         userdata = userdata.mean()
         userdata = userdata.reset_index()
         userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
         sns.heatmap(userdata, vmin=1.3, cmap='RdBu_r')
-    elif metric=='std':
+    elif metric == 'std':
         userdata = userdata.std()
         userdata = userdata.reset_index()
         userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
@@ -82,32 +101,38 @@ def plot_heatmap(metric, user=-1):
     plt.title('{0} activity of user {1}'.format(metric, user))
     plt.ylabel('Day of week')
     plt.xlabel('Hour of day')
-    plt.yticks(np.arange(0.5,7.5), days, rotation='horizontal')
-    plt.xticks(np.arange(0.5,24.5),get_hour_labels(), rotation='vertical')
+    plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
+    plt.xticks(np.arange(0.5, 24.5), get_hour_labels(), rotation='vertical')
 
     plt.show()
 
-def plot_heatmaps_mean(users=[50,31,4]):
+
+def plot_heatmaps_mean(users=[50, 31, 4]):
+    '''
+    Plot heatmaps of 3 different user using the metric mean
+
+    '''
+
     df = get_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
-    #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
     fig, axes = plt.subplots(
-            nrows=1, ncols=4,
-            figsize=(15,4.4),
-            gridspec_kw={'width_ratios':[15,15,15,1]}
-            )
+        nrows=1, ncols=4,
+        figsize=(15, 4.4),
+        gridspec_kw={'width_ratios': [15, 15, 15, 1]}
+    )
 
     cbar_ax = axes[-1]
 
-    for i in range(0,3):
+    for i in range(0, 3):
         user = users[i]
         ax = axes[i]
-        userdata = get_user_data(df,user)
+        userdata = get_user_data(df, user)
         userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
         userdata = userdata.mean()
         userdata = userdata.reset_index()
@@ -116,57 +141,61 @@ def plot_heatmaps_mean(users=[50,31,4]):
                     ax=ax,
                     vmin=1.3, vmax=2,
                     cmap='RdBu_r',
-                    cbar= True if i==2 else False,
+                    cbar=True if i == 2 else False,
                     linewidths=.05,
-                    cbar_ax = cbar_ax if i==2 else None,
+                    cbar_ax=cbar_ax if i == 2 else None,
                     )
         ax.set_title('Usuario {0}'.format(user))
         ax.set_ylabel('')
         ax.set_xlabel('')
         plt.sca(ax)
-        if i==0: plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
-        else: ax.tick_params(labelleft = False, tick1On=False)
+        if i == 0:
+            plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
+        else:
+            ax.tick_params(labelleft=False, tick1On=False)
         plt.xticks(np.arange(0.5, 24.5),
                    get_hour_labels(),
                    rotation='vertical',
                    )
-        ax.set_xlabel('Hora del día',fontsize   =10)
+        ax.set_xlabel('Hora del día', fontsize=10)
         ax.tick_params(axis='x', which='major', labelsize=8)
 
-
-    #fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
+    # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
     fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
 
-
-    #plt.xlabel('Day of week', fontsize=18, labelpad=23)
-    #plt.ylabel('Hour of day', fontsize=18, labelpad=45)
-    #fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
+    # plt.xlabel('Day of week', fontsize=18, labelpad=23)
+    # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
+    # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.subplots_adjust(left=.5, bottom=.15, wspace=0, hspace=0)
     plt.show()
 
-def plot_heatmaps_std(users=[50,31,4]):
+
+def plot_heatmaps_std(users=[50, 31, 4]):
+    '''
+    Plot incredibly beautiful heatmaps of 3 different user using the metric mean
+
+    '''
+
     df = get_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
-    #days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
     fig, axes = plt.subplots(
-            nrows=1, ncols=4,
-            figsize=(15,4.4),
-            gridspec_kw={'width_ratios':[15,15,15,1]}
-            )
-
-
+        nrows=1, ncols=4,
+        figsize=(15, 4.4),
+        gridspec_kw={'width_ratios': [15, 15, 15, 1]}
+    )
 
     cbar_ax = axes[-1]
 
-    for i in range(0,3):
+    for i in range(0, 3):
         user = users[i]
         ax = axes[i]
-        userdata = get_user_data(df,user)
+        userdata = get_user_data(df, user)
         userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
 
         userdata = userdata.std()
@@ -175,37 +204,43 @@ def plot_heatmaps_std(users=[50,31,4]):
 
         sns.heatmap(userdata,
                     ax=ax,
-                    #vmin=1.3, vmax=2,
+                    # vmin=1.3, vmax=2,
                     cmap='autumn_r',
-                    cbar= True if i==2 else False,
+                    cbar=True if i == 2 else False,
                     linewidths=.05,
-                    cbar_ax = cbar_ax if i==2 else None,
+                    cbar_ax=cbar_ax if i == 2 else None,
                     )
         ax.set_title('Usuario {0}'.format(user))
         ax.set_ylabel('')
         ax.set_xlabel('')
         plt.sca(ax)
-        if i==0: plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
-        else: ax.tick_params(labelleft = False, tick1On=False)
+        if i == 0:
+            plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
+        else:
+            ax.tick_params(labelleft=False, tick1On=False)
         plt.xticks(np.arange(0.5, 24.5),
                    get_hour_labels(),
                    rotation='vertical',
                    )
-        ax.set_xlabel('Hora del día',fontsize   =10)
+        ax.set_xlabel('Hora del día', fontsize=10)
         ax.tick_params(axis='x', which='major', labelsize=8)
 
-
-    #fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
+    # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
     fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
 
-
-    #plt.xlabel('Day of week', fontsize=18, labelpad=23)
-    #plt.ylabel('Hour of day', fontsize=18, labelpad=45)
-    #fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.subplots_adjust(left=.5,bottom=.15,wspace=0,hspace=0)
+    # plt.xlabel('Day of week', fontsize=18, labelpad=23)
+    # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
+    # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.subplots_adjust(left=.5, bottom=.15, wspace=0, hspace=0)
     plt.show()
 
+
 def plot_by_week(user):
+    '''
+    Plot a users energy expenditure over the entire season for each week
+
+    '''
+
     dfu = get_user_data(df, user).droplevel(0).loc[:, 'slevel']
     date = pd.date_range('2013-03-27 04:00:00', '2013-06-01 3:00:00', freq='h')
     d = pd.DataFrame(index=date)
@@ -244,7 +279,13 @@ def plot_by_week(user):
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
 
+plot_by_week(86)
+
 def plot_by_month(user):
+    '''
+    Plot a users energy expenditure over the entire season for each month
+
+    '''
     dfu = get_user_data(df, user).droplevel(0).loc[:, 'slevel']
     date = pd.date_range('2013-03-27 04:00:00', '2013-06-01 3:00:00', freq='h')
     d = pd.DataFrame(index=date)
@@ -279,47 +320,4 @@ def plot_by_month(user):
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
 
-def show_train_prediction(user, architecture):
-    info = train_cache[user][architecture]
-    model = models[user][architecture]['model']
-    plt.close()
-    plt.figure(figsize=(15, 4))
-    plt.title('Datos de entrenamiento y predicciones para el usuario {0} con la arquitectura {1}'.format(user, architecture))
-    y_pred = model.predict(info['x_train'])
-    plt.plot(info['y_train'], label='Train')
-    plt.plot(y_pred, label='Predicción')
-    plt.axhline(y=1.5, color='r', linestyle=':', )
-    plt.legend(loc='upper right')
-    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}__train.png'.format(time_lags,user, architecture))
 
-def show_test_prediction(user, architecture):
-    info = test_cache[user][architecture]
-    model = models[user][architecture]['model']
-    plt.close()
-    plt.figure(figsize=(15, 4))
-    #plt.title('Datos de testeo y predicciones para el usuario {0} con la arquitectura {1}'.format(user, architecture))
-    y_pred = model.predict(info['x_test'])
-    plt.plot(info['y_test'], label='Prueba')
-    plt.plot(y_pred, label='Predicción')
-    plt.ylabel('MET')
-    plt.axhline(y=1.5, color='r', linestyle=':', )
-    plt.legend(loc='upper right')
-    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}__test.png'.format(time_lags,user, architecture))
-
-def show_history_loss(user, architecture):
-    history = models[user][architecture]['history']
-    plt.close()
-    plt.title('Train loss vs. Test loss of user {0} with architecture {1}'.format(user, architecture))
-    plt.plot(history.history['loss'], label='train')
-    plt.plot(history.history['val_loss'], label='test')
-    plt.legend()
-    plt.savefig('Imagenes/{0}lags_user{1}_arch{2}_loss.png'.format(time_lags,user, architecture))
-
-def generate_prediction_images():
-    for user in users:
-        for architecture in range(1, number_of_architectures + 1):
-            print('*** Generando predicciones para el usuario {0} y la arquitectura {1}... ***'.format(user,
-                                                                                                       architecture))
-            show_train_prediction(user, architecture)
-            show_test_prediction(user, architecture)
-            show_history_loss(user, architecture)
