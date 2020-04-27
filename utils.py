@@ -10,9 +10,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import StandardScaler
+
 pd.options.mode.chained_assignment = None
 
 numpy.random.seed(7)
+
 
 def createSensingTable(sensor):
     """
@@ -34,9 +36,11 @@ def createSensingTable(sensor):
     df.to_csv('processing/' + sensor + '.csv', index=False)
     return df
 
+
 def Most_Common(lst):
     data = Counter(lst)
     return data.most_common(1)[0][0]
+
 
 def get_user_data(data, userId):
     """
@@ -47,6 +51,7 @@ def get_user_data(data, userId):
         return data.loc[data.index.get_level_values(0) == userId].copy()
     except KeyError:
         print('El usuario ', userId, ' no existe.')
+
 
 def get_not_user_data(data, userId):
     """
@@ -59,6 +64,7 @@ def get_not_user_data(data, userId):
     except KeyError:
         print('El usuario ', userId, ' no existe.')
 
+
 def get_X_y_regression(df):
     """
     Separe data between X (feature) and y (prediction_variable)
@@ -67,6 +73,7 @@ def get_X_y_regression(df):
     dfcopy = df.copy()
     features = [col for col in dfcopy.columns if 'slevel' != col]
     return dfcopy[features].reset_index(drop=True), dfcopy['slevel'].reset_index(drop=True)
+
 
 def makeSedentaryClasses(df):
     """
@@ -77,9 +84,10 @@ def makeSedentaryClasses(df):
     dfcopy['sclass'] = ''
     dfcopy.loc[df['slevel'] >= 1.5, 'sclass'] = 0.0  # 'sedentary'
     dfcopy.loc[df['slevel'] < 1.5, 'sclass'] = 1.0  # 'not sedentary'
-    #dfcopy['actualClass'] = dfcopy['sclass']
+    # dfcopy['actualClass'] = dfcopy['sclass']
     dfcopy.drop(['slevel'], inplace=True, axis=1)
     return dfcopy
+
 
 def get_X_y_classification(df, withActualClass=True):
     '''
@@ -87,10 +95,11 @@ def get_X_y_classification(df, withActualClass=True):
     :param withActualClass: If the actual class should be used as a feature. Default is true
     '''
     dfcopy = df.copy()
-    #if not withActualClass:
+    # if not withActualClass:
     #    dfcopy.drop(['actualClass'], inplace=True, axis=1)
     features = [col for col in dfcopy.columns if 'sclass' != col]
     return dfcopy[features].reset_index(drop=True), dfcopy['sclass'].reset_index(drop=True)
+
 
 def shift_hours(df, n, columns=None):
     '''
@@ -112,6 +121,7 @@ def shift_hours(df, n, columns=None):
     dfcopy.dropna(inplace=True)
     return dfcopy
 
+
 def create_classifier_model(clf):
     '''
     Makes a pipeline from the clf param and a MinMaxScaler
@@ -119,14 +129,15 @@ def create_classifier_model(clf):
     '''
     numeric_cols = ['numberOfConversations', 'wifiChanges',
                     'silenceLevel', 'voiceLevel', 'noiseLevel',
-                    'hourSine','hourCosine',
+                    'hourSine', 'hourCosine',
                     'remainingminutes', 'pastminutes',
                     'distanceTraveled', 'locationVariance']
     transformer = ColumnTransformer([('scale', MinMaxScaler(), numeric_cols)],
                                     remainder='passthrough')
     return make_pipeline(transformer, clf)
 
-def METcalculation(df, metValues=(1.3,5,8.3)):
+
+def METcalculation(df, metValues=(1.3, 5, 8.3)):
     '''
     Calculates de metLevel feature from the metValues
 
@@ -138,6 +149,7 @@ def METcalculation(df, metValues=(1.3,5,8.3)):
                 dfcopy['runningLevel'] * metValues[2])
     dfcopy['slevel'] = metLevel
     return dfcopy
+
 
 def makeDummies(df):
     '''
@@ -154,29 +166,34 @@ def makeDummies(df):
     dfcopy.drop(categorical_cols, inplace=True, axis=1)
     return pd.concat([dfcopy, dummies], axis=1, sort=False)
 
-def delete_user(df,user):
+
+def delete_user(df, user):
     '''
     Deletes a specific user.
 
     '''
-    return df.copy().loc[df.index.get_level_values(0)!=user]
+    return df.copy().loc[df.index.get_level_values(0) != user]
+
 
 def get_total_harversine_distance_traveled(x):
     d = 0.0
     samples = x.shape[0]
-    for i in np.arange(0,samples):
+    for i in np.arange(0, samples):
         try:
-            d += haversine(x.iloc[i,:].values, x.iloc[i+1,:].values)
+            d += haversine(x.iloc[i, :].values, x.iloc[i + 1, :].values)
         except IndexError:
             pass
     return d
 
+
 def delete_sleep_hours(df):
     dfcopy = df.copy()
     return dfcopy.loc[(dfcopy['slevel'] >= 1.5) |
-                      ((dfcopy.index.get_level_values(1).hour<22) &
-                       (dfcopy.index.get_level_values(1).hour>5))]
-#saco horas oscuras
+                      ((dfcopy.index.get_level_values(1).hour < 22) &
+                       (dfcopy.index.get_level_values(1).hour > 5))]
+
+
+# saco horas oscuras
 
 def get_dataset(gran='1h', with_dummies=True):
     '''
@@ -194,6 +211,7 @@ def get_dataset(gran='1h', with_dummies=True):
 
     return df
 
+
 def series_to_supervised(df, dropnan=True, number_of_lags=None, period=1):
     '''
     Creates the lagged dataset calling shift_hours for every lag and then combines all the lagged datasets
@@ -205,13 +223,13 @@ def series_to_supervised(df, dropnan=True, number_of_lags=None, period=1):
     lags = range(period * number_of_lags, 0, -period)
     columns = df.columns
     n_vars = df.shape[1]
-    print(lags,columns,n_vars)
+    print(lags, columns, n_vars)
     data, names = list(), list()
-    #print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
+    # print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
     for i in range(len(lags), 0, -1):
-        data.append(shift_hours(df, lags[i-1], df.columns))
-        names += [('{0}(t-{1})'.format(columns[j], lags[i-1])) for j in range(n_vars)]
+        data.append(shift_hours(df, lags[i - 1], df.columns))
+        names += [('{0}(t-{1})'.format(columns[j], lags[i - 1])) for j in range(n_vars)]
     data.append(df)
     names += [('{0}(t)'.format(columns[j])) for j in range(n_vars)]
 
@@ -223,6 +241,7 @@ def series_to_supervised(df, dropnan=True, number_of_lags=None, period=1):
         agg.dropna(inplace=True)
     return agg
 
+
 def make_lagged_datasets(lags=None, period=1, gran='1h'):
     '''
     Calls series_to_supervised for every user (otherwise user information would be merged) and then combines it.
@@ -233,11 +252,12 @@ def make_lagged_datasets(lags=None, period=1, gran='1h'):
     df = pd.read_pickle('pkl/dataset_gran{0}.pkl'.format(gran))
     data = list()
     for i in df.index.get_level_values(0).drop_duplicates():
-        d = series_to_supervised(get_user_data(df, i), number_of_lags=lags, period = period)
+        d = series_to_supervised(get_user_data(df, i), number_of_lags=lags, period=period)
         data.append(d)
     df = pd.concat(data, axis=0)
-    df.to_pickle('pkl/datasets/gran{2}_period{1}_lags{0}.pkl'.format(lags, period,gran))
+    df.to_pickle('pkl/datasets/gran{2}_period{1}_lags{0}.pkl'.format(lags, period, gran))
     del df
+
 
 def generate_MET_stadistics(df):
     '''
@@ -263,19 +283,21 @@ def generate_MET_stadistics(df):
         # corrs.append(corr)
     return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things).sort_values('met')
 
-def get_data(personal, nb_lags, period, gran,user=-1):
+
+def get_data(personal, nb_lags, period, gran, user=-1):
     '''
     Get a specific and already generated dataset based on nb_lags, period, gran.
     If personal is true, only returns the specific users data
 
     '''
-    data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format(gran,period,nb_lags))
+    data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format(gran, period, nb_lags))
     if personal and user != -1:
         return get_user_data(data, user)
     else:
         return data
 
-#data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format('1h',1,4))
+
+# data = pd.read_pickle('pkl/datasets/gran{0}_period{1}_lags{2}.pkl'.format('1h',1,4))
 
 def split_x_y_regression(data):
     '''
@@ -287,7 +309,8 @@ def split_x_y_regression(data):
     y = data.iloc[:, data.columns.get_loc('slevel(t)')]
     return x, y
 
-def get_train_test_data_regression(user,standarize, lags, period, gran, personal):
+
+def get_train_test_data_regression(user, standarize, lags, period, gran, personal):
     '''
     From a specific and already processed dataset, generated x_train, x_test, y_train, y_test.
 
@@ -301,12 +324,12 @@ def get_train_test_data_regression(user,standarize, lags, period, gran, personal
                     'remainingminutes', 'pastminutes',
                     'locationVariance']
     to_standarize = [col + '(t-{0})'.format(lag) for lag in range(1, lags + 1) for col in numeric_cols]
-    #aux = to_standarize.copy()
-    #aux.append('slevel(t)')
-    #data = data.loc[:,aux]
+    # aux = to_standarize.copy()
+    # aux.append('slevel(t)')
+    # data = data.loc[:,aux]
     x, y = split_x_y_regression(data)
     if personal:
-        x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2/3)
+        x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2 / 3)
     else:
         x_test = get_user_data(x, user)
         x_train = get_not_user_data(x, user)
@@ -315,15 +338,16 @@ def get_train_test_data_regression(user,standarize, lags, period, gran, personal
     x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
     x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
     if standarize:
-        #get_loc gets the number of a column based on its name
+        # get_loc gets the number of a column based on its name
         to_standarize = [data.columns.get_loc(c) for c in to_standarize]
         ss = StandardScaler()
-        x_train[:, to_standarize] = ss.fit_transform(x_train[:,to_standarize])
-        x_test[:, to_standarize] = ss.transform(x_test[:,to_standarize])
+        x_train[:, to_standarize] = ss.fit_transform(x_train[:, to_standarize])
+        x_test[:, to_standarize] = ss.transform(x_test[:, to_standarize])
     return x_train, y_train, x_test, y_test
 
-#df = pd.read_pickle('pkl/dataset.pkl')
-#d = generate_MET_stadistics(df)
+
+# df = pd.read_pickle('pkl/dataset.pkl')
+# d = generate_MET_stadistics(df)
 '''
 if __name__ == '__main__':
     for gran in ['30m']:
