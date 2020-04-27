@@ -55,7 +55,6 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     ax.legend(loc='upper right')
     plt.show()
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
-show_user_activity(35)
 
 
 def get_hour_labels():
@@ -278,8 +277,6 @@ def plot_by_week(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
-
-plot_by_week(86)
 
 def plot_by_month(user):
     '''
