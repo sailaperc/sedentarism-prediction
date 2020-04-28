@@ -1,7 +1,7 @@
 .idea/*
 __pycache__/*
 dataset/*
-processing/*
+sensing_data/*
 imagenes/*
 txt/*
 pkl/*

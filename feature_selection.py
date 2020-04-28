@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2, f_regression
-from utils import get_data,split_x_y
+from preprocessing.preprocessing_model_ready import get_lagged_dataset, split_x_y_regression
 
-data = get_data(False,3,1,'1h')
-X,y = split_x_y(data)
+data = get_lagged_dataset(False,3,1,'1h')
+X,y = split_x_y_regression(data)
 
 
 bestfeatures = SelectKBest(score_func=f_regression, k=10)

@@ -1,4 +1,4 @@
-from utils import get_data
+from preprocessing.preprocessing_model_ready import get_lagged_dataset
 from sklearn.metrics import mean_absolute_error
 
 
@@ -12,7 +12,7 @@ def run_naive_approach(users=[50, 31, 4]):
     '''
     results = []
     for user in users:
-        data = get_data(True, 1, 1, '1h', user)
+        data = get_lagged_dataset(True, 1, 1, '1h', user)
         #last two columns are slevel(t-1) and slevel(t)
         arr = data.iloc[:, -2:].to_numpy()
         f = int(arr.shape[0] * 2 / 3)

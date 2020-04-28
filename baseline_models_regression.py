@@ -1,19 +1,16 @@
 from os import listdir
 from sklearn.linear_model import LinearRegression
-from utils import get_data, get_train_test_data
+from preprocessing.preprocessing_model_ready import get_lagged_dataset, get_train_test_data_regression
 from sklearn.metrics import mean_absolute_error
 import warnings
+import pandas as pd
 
 warnings.filterwarnings("ignore", category=FutureWarning)
-import matplotlib.pyplot as plt
-import pandas as pd
-import seaborn as sns
 
 path = 'pkl/datasets'
 files = listdir(path)
 
 df = pd.DataFrame(columns=['gran', 'period', 'lags', 'mae'])
-
 
 tresd = False
 for f in files:  # files:
@@ -31,17 +28,16 @@ for f in files:  # files:
 
     print('lags :' + str(lags) + '. period: ' + str(period) + '. gran: ' + str(gran))
 
-    data = get_data(False, lags, period, gran, user)
-    x_train, y_train, x_test, y_test = get_train_test_data(user, True, lags,
-                                                           period, gran, True)
+    data = get_dataset(False, lags, period, gran, user)
+    x_train, y_train, x_test, y_test = get_train_test_data_regression(user, True, lags,
+                                                                      period, gran, True)
     lr = LinearRegression()
-    lr.fit(x_train,y_train)
-    s = 'lags :' + str(lags) + '. period: ' + str(period) +\
-        '. gran: ' + str(gran) + '. score: ' + str(lr.score(x_test,y_test))
+    lr.fit(x_train, y_train)
+    s = 'lags :' + str(lags) + '. period: ' + str(period) + \
+        '. gran: ' + str(gran) + '. score: ' + str(lr.score(x_test, y_test))
     new = pd.DataFrame(
-        {'lags' : [lags],
-         'period' : period,
-         'gran' : gran,
-         'mae' : float(round(mean_absolute_error(y_test, lr.predict(x_test)), 3))})
+        {'lags': [lags],
+         'period': period,
+         'gran': gran,
+         'mae': float(round(mean_absolute_error(y_test, lr.predict(x_test)), 3))})
     df = df.append(new)
-

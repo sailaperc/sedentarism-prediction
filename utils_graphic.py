@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from utils import get_user_data, get_dataset
+from utils import get_user_data
+from preprocessing.preprocessing_model_ready import get_lagged_dataset
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
@@ -112,7 +113,7 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
 
     '''
 
-    df = get_dataset()
+    df = get_lagged_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
@@ -175,7 +176,7 @@ def plot_heatmaps_std(users=[50, 31, 4]):
 
     '''
 
-    df = get_dataset()
+    df = get_lagged_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
