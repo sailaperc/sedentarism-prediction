@@ -4,6 +4,7 @@ from scipy.stats.stats import pearsonr
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import MinMaxScaler
+import os
 
 pd.options.mode.chained_assignment = None
 
@@ -47,8 +48,8 @@ def create_classifier_model(clf):
                                     remainder='passthrough')
     return make_pipeline(transformer, clf)
 
-
-
+def file_exists(file):
+    return os.path.exists(file)
 
 
 

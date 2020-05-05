@@ -1,6 +1,6 @@
 from os import listdir
 from sklearn.linear_model import LinearRegression
-from preprocessing.preprocessing_model_ready import get_lagged_dataset, get_train_test_data_regression
+from preprocessing.model_ready import get_lagged_dataset, get_train_test_data_regression
 from sklearn.metrics import mean_absolute_error
 import warnings
 import pandas as pd

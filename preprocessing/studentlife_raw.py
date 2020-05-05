@@ -52,7 +52,7 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from haversine import haversine
-import os
+from utils import file_exists
 
 def delete_sleep_hours(df):
     dfcopy = df.copy()
@@ -77,13 +77,14 @@ def Most_Common(lst):
     return data.most_common(1)[0][0]
 
 
+
 def createSensingTable(sensor):
     """
     Creates one dataframe from all the sensor data of all users
 
     dataset raw data should be at dataset/sensing/ in the project folder
     """
-    if os.path.exists('sensing_data/' + sensor + '.csv'):
+    if file_exists('sensing_data/' + sensor + '.csv'):
         print('sensing_data already generated')
     else:
         path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
@@ -107,7 +108,6 @@ def createSensingTables():
     for file in sensor_data_files:
         createSensingTable(file)
 
-createSensingTables()
 
 def student_data_preprocessing(freq='1h'):
     # prepare activity data

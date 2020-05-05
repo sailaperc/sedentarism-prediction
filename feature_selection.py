@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.feature_selection import SelectKBest
 from sklearn.feature_selection import chi2, f_regression
-from preprocessing.preprocessing_model_ready import get_lagged_dataset, split_x_y_regression
+from preprocessing.model_ready import get_lagged_dataset, split_x_y_regression
 
 data = get_lagged_dataset(False,3,1,'1h')
 X,y = split_x_y_regression(data)

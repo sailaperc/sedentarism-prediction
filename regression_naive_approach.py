@@ -1,4 +1,4 @@
-from preprocessing.preprocessing_model_ready import get_lagged_dataset
+from preprocessing.model_ready import get_lagged_dataset
 from sklearn.metrics import mean_absolute_error
 
 

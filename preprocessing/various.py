@@ -1,4 +1,5 @@
 import pandas as pd
+from utils import file_exists
 
 
 def addSedentaryLevel(df, metValues=(1.3, 5, 8.3)):
@@ -15,7 +16,7 @@ def addSedentaryLevel(df, metValues=(1.3, 5, 8.3)):
     return dfcopy
 
 
-def addSedentaryClasses(df):
+def addSedentaryClasses(df, drop_slevel= True):
     """
     Generate an sclass column in the dataframe with true if sedentary and false if not sedentary
 
@@ -25,7 +26,8 @@ def addSedentaryClasses(df):
     dfcopy.loc[df['slevel'] >= 1.5, 'sclass'] = 0.0  # 'sedentary'
     dfcopy.loc[df['slevel'] < 1.5, 'sclass'] = 1.0  # 'not sedentary'
     # dfcopy['actualClass'] = dfcopy['sclass']
-    dfcopy.drop(['slevel'], inplace=True, axis=1)
+    if drop_slevel:
+        dfcopy.drop(['slevel'], inplace=True, axis=1)
     return dfcopy
 
 
@@ -53,19 +55,27 @@ def delete_user(df, user):
     return df.copy().loc[df.index.get_level_values(0) != user]
 
 
-def generate_dataset(gran='1h', with_dummies=True, save=False):
-    '''
-        Creates a dataset with granularity gran. It uses the preprocesed dataset  with the same granularity and makes the
-        final preprocessing steps (delete the user 52, make dummy variables and calculate de sLevel feature.
-
-    '''
-
+def generate_dataset(gran='1h', with_dummies=True, file_name=''):
     df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
     df = delete_user(df, 52)
     if with_dummies:
         df = makeDummies(df)
     df = addSedentaryLevel(df)
-    if save:
-        pd.to_pickle(df, 'pkl/dataset_gran{0}.pkl'.format(gran))
-
+    pd.to_pickle(df, file_name)
     return df
+
+
+def get_dataset(gran='1h'):
+    '''
+        Creates a dataset with granularity gran. It uses the preprocesed dataset  with the same granularity and makes
+        some preprocessing steps (delete the user 52, make dummy variables and calculate de sLevel feature.
+
+    '''
+
+    file_name = 'pkl/dataset_gran{0}.pkl'.format(gran)
+    if not file_exists(file_name):
+        print('dataset does not exist.')
+        print('generating dataset')
+        generate_dataset(gran)
+
+    return pd.read_pickle(file_name)

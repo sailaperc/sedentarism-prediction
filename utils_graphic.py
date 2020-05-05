@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 from utils import get_user_data
-from preprocessing.preprocessing_model_ready import get_lagged_dataset
+from preprocessing.model_ready import get_lagged_dataset
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors

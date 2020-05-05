@@ -40,7 +40,9 @@ swithdummies = swithdummies.dropna()
 
 
 s = s.sort_values('isSedentary')
+
 s = s.head(41397) #numero magico
+
 s['slevel'] = pd.qcut(s['isSedentary'], 3, labels=['less sedentary', 'sedentary', 'very sedentary'])
 
 
