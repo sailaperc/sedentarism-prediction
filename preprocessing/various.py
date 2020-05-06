@@ -55,27 +55,7 @@ def delete_user(df, user):
     return df.copy().loc[df.index.get_level_values(0) != user]
 
 
-def generate_dataset(gran='1h', with_dummies=True, file_name=''):
-    df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
-    df = delete_user(df, 52)
-    if with_dummies:
-        df = makeDummies(df)
-    df = addSedentaryLevel(df)
-    pd.to_pickle(df, file_name)
-    return df
-
-
-def get_dataset(gran='1h'):
-    '''
-        Creates a dataset with granularity gran. It uses the preprocesed dataset  with the same granularity and makes
-        some preprocessing steps (delete the user 52, make dummy variables and calculate de sLevel feature.
-
-    '''
-
-    file_name = 'pkl/dataset_gran{0}.pkl'.format(gran)
-    if not file_exists(file_name):
-        print('dataset does not exist.')
-        print('generating dataset')
-        generate_dataset(gran)
-
-    return pd.read_pickle(file_name)
+def delete_sleep_hours(df):
+    return df.loc[(dfcopy['slevel'] >= 1.5) |
+                  ((dfcopy.index.get_level_values(1).hour < 22) &
+                   (dfcopy.index.get_level_values(1).hour > 5))]

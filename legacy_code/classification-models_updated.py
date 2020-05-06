@@ -1,22 +1,11 @@
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.utils import to_categorical
-from keras.optimizers import SGD
-import pandas as pd
-import numpy as np
-from imblearn.over_sampling import SMOTE
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+#from imblearn.over_sampling import SMOTE
+from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.linear_model import LogisticRegression
 from sklearn.dummy import DummyClassifier
-import matplotlib.pyplot as plt
 from keras.layers import Dense, Dropout, BatchNormalization, Activation
-
-from preprocessing.lagged_dataset import get_lagged_dataset
-from preprocessing.model_ready import split_x_y_classification,get_X_y_classification
-
-df = get_lagged_dataset('classification', user=10)
-
+from keras.wrappers.scikit_learn import KerasClassifier
+from preprocessing.model_ready import get_train_test_data
 
 def get_model():
     estimator = Sequential([
@@ -39,10 +28,8 @@ def get_model():
                       metrics=['binary_accuracy'])
     return estimator
 
+x_train, y_train, x_test, y_test = get_train_test_data('classification', user=10)
 
-X, y = split_x_y_classification(df)
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 
 '''
 #codigo para usar oversampling
@@ -59,29 +46,20 @@ print(clf.score(X_test, y_test))
 print(classification_report(y_test, clf.predict(X_test)))
 '''
 
-clf = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
-model = create_model(clf)
+model = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
+#model = create_classifier_model(clf)
 print('LOGREG\n')
-model.fit(X_train, y_train)
-y_pred = model.predict(X_test)
+model.fit(x_train, y_train)
+y_pred = model.predict(x_test)
 print(confusion_matrix(y_test, y_pred))
 print(classification_report(y_test, y_pred))
 
 print('DNN\n')
-clf = KerasClassifier(get_model, epochs=20, batch_size=32, verbose=2, validation_data=(X_test, y_test))
-modelnn = create_model(clf)
-modelnn.fit(X_train, y_train)
-y_pred = modelnn.predict(X_test)
+modelnn = KerasClassifier(get_model, epochs=20, batch_size=32, verbose=2, validation_data=(x_test, y_test))
+modelnn.fit(x_train, y_train)
+y_pred = modelnn.predict(x_test)
 print(classification_report(y_test, y_pred))
 
 print(classification_report(y_test, DummyClassifier(strategy='most_frequent', random_state=7)
-                            .fit(X_train, y_train).predict(X_test)))
-# model.summary()
-plt.close()
-cols = X.columns
-nums = np.arange(1, 33)
-a = clf.coef_
-plt.plot(nums, a.reshape(-1, 1))
-plt.xticks(nums, cols, rotation='vertical')
-plt.grid(True)
-plt.show()
+                            .fit(x_train, y_train).predict(x_test)))
+get_model().summary()

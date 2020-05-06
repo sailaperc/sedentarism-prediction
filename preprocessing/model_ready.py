@@ -2,56 +2,33 @@ from sklearn.model_selection import train_test_split
 from utils import get_user_data, get_not_user_data
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from preprocessing.datasets import get_lagged_dataset
 
 
-def get_X_y_classification(df, withActualClass=True):
-    '''
-
-    :param withActualClass: If the actual class should be used as a feature. Default is true
-    '''
-    dfcopy = df.copy()
-    # if not withActualClass:
-    #    dfcopy.drop(['actualClass'], inplace=True, axis=1)
-    features = [col for col in dfcopy.columns if 'sclass' != col]
-    return dfcopy[features].reset_index(drop=True), dfcopy['sclass'].reset_index(drop=True)
-
-def split_x_y_regression(data):
+def split_x_y(data, model_type):
     '''
     [for regression]
     Returns x and y for a lagged dataset, where 'y' is the column named 'slevel(t)', that is, the sedentary level of the present
     '''
-    x = data.iloc[:, [data.columns.get_loc(c) for _, c in enumerate(data.columns) if c != 'slevel(t)']]
-    y = data.iloc[:, data.columns.get_loc('slevel(t)')]
+    if model_type=='classification':
+        target_feature = 'sclass'
+    else:
+        target_feature = 'slevel'
+
+    x = data.iloc[:, :-1]
+    y = data.iloc[:, -1]
     return x, y
 
-def split_x_y_classification(data):
-    '''
-    [for regression]
-    Returns x and y for a lagged dataset, where 'y' is the column named 'slevel(t)', that is, the sedentary level of the present
-    '''
-    x = data.iloc[:, [data.columns.get_loc(c) for _, c in enumerate(data.columns) if c != 'sclass(t)']]
-    y = data.iloc[:, data.columns.get_loc('sclass(t)')]
-    return x, y
-
-def get_train_test_data_regression(user, standarize, lags, period, gran, personal):
+def get_train_test_data(model_type,  nb_lags=1, period=1, gran='1h', user=-1, standarize=True):
     '''
     From a specific and already processed dataset, generated x_train, x_test, y_train, y_test.
 
     If standarize is true, X will be standarized
     '''
-    data = get_lagged_dataset(personal, lags, period, gran, user)
-    numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
-                    'numberOfConversations', 'wifiChanges',
-                    'silenceLevel', 'voiceLevel', 'noiseLevel',
-                    'hourSine', 'hourCosine',
-                    'remainingminutes', 'pastminutes',
-                    'locationVariance']
-    to_standarize = [col + '(t-{0})'.format(lag) for lag in range(1, lags + 1) for col in numeric_cols]
-    # aux = to_standarize.copy()
-    # aux.append('slevel(t)')
-    # data = data.loc[:,aux]
-    x, y = get_x_y_regression(data)
-    if personal:
+    assert (model_type == 'regression' or model_type == 'classification'), 'Not a valid model type.'
+    data = get_lagged_dataset(model_type, nb_lags, period, gran, user)
+    x, y = split_x_y(data, model_type)
+    if user!=-1:
         x_train, x_test, y_train, y_test = train_test_split(x, y, shuffle=False, train_size=2 / 3)
     else:
         x_test = get_user_data(x, user)
@@ -61,11 +38,19 @@ def get_train_test_data_regression(user, standarize, lags, period, gran, persona
     x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
     x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
     if standarize:
+        numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
+                        'numberOfConversations', 'wifiChanges',
+                        'silenceLevel', 'voiceLevel', 'noiseLevel',
+                        'hourSine', 'hourCosine',
+                        'remainingminutes', 'pastminutes',
+                        'locationVariance']
+        to_standarize = [col + '(t-{0})'.format(lag) for lag in range(1, nb_lags + 1) for col in numeric_cols]
         # get_loc gets the number of a column based on its name
         to_standarize = [data.columns.get_loc(c) for c in to_standarize]
         ss = StandardScaler()
         x_train[:, to_standarize] = ss.fit_transform(x_train[:, to_standarize])
         x_test[:, to_standarize] = ss.transform(x_test[:, to_standarize])
+
     return x_train, y_train, x_test, y_test
 
 

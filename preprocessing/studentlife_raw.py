@@ -51,16 +51,10 @@ from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
 from collections import Counter
-from haversine import haversine
 from utils import file_exists
 
-def delete_sleep_hours(df):
-    dfcopy = df.copy()
-    return dfcopy.loc[(dfcopy['slevel'] >= 1.5) |
-                      ((dfcopy.index.get_level_values(1).hour < 22) &
-                       (dfcopy.index.get_level_values(1).hour > 5))]
 
-
+'''
 def get_total_harversine_distance_traveled(x):
     d = 0.0
     samples = x.shape[0]
@@ -70,12 +64,12 @@ def get_total_harversine_distance_traveled(x):
         except IndexError:
             pass
     return d
+'''
 
 
 def Most_Common(lst):
     data = Counter(lst)
     return data.most_common(1)[0][0]
-
 
 
 def createSensingTable(sensor):
@@ -110,249 +104,256 @@ def createSensingTables():
 
 
 def student_data_preprocessing(freq='1h'):
-    # prepare activity data
-    sdata = pd.read_csv('sensing_data/activity.csv')
-    sdata.columns = ['time', 'activityId', 'userId']
-    sdata = sdata.loc[sdata['activityId'] != 3]
-    sdata['time'] = sdata['time'].dt.floor(freq)
-    s = pd.DataFrame(index=pd.MultiIndex.from_product(iterables=[sdata['userId'].drop_duplicates(),
-                                                                 pd.date_range('2013-03-27 04:00:00',
-                                                                               '2013-06-01 3:00:00',
-                                                                               freq=freq)],
-                                                      names=['userId', 'time']))
+    if not file_exists('pkl/sedentarismdata_gran{0}.pkll'.format(freq)):
 
-    sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
+        # prepare activity data
+        sdata = pd.read_csv('sensing_data/activity.csv')
+        sdata.columns = ['time', 'activityId', 'userId']
+        sdata = sdata.loc[sdata['activityId'] != 3]
+        sdata['time'] = pd.to_datetime(sdata['time'], unit='s').dt.floor(freq)
+        s = pd.DataFrame(index=pd.MultiIndex.from_product(iterables=[sdata['userId'].drop_duplicates(),
+                                                                     pd.date_range('2013-03-27 04:00:00',
+                                                                                   '2013-06-01 3:00:00',
+                                                                                   freq=freq)],
+                                                          names=['userId', 'time']))
 
-    # logs per activity
-    s.loc[:, 'stationaryLevel'] = sdata.groupby(['userId', 'time'])['act_0'].mean()
-    s.loc[:, 'walkingLevel'] = sdata.groupby(['userId', 'time'])['act_1'].mean()
-    s.loc[:, 'runningLevel'] = sdata.groupby(['userId', 'time'])['act_2'].mean()
-    s.dropna(how='all', inplace=True)
+        sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
 
-    # 2013-03-27 04:00:00
-    # 2013-06-01 3:00:00
+        # logs per activity
+        s.loc[:, 'stationaryLevel'] = sdata.groupby(['userId', 'time'])['act_0'].mean()
+        s.loc[:, 'walkingLevel'] = sdata.groupby(['userId', 'time'])['act_1'].mean()
+        s.loc[:, 'runningLevel'] = sdata.groupby(['userId', 'time'])['act_2'].mean()
+        s.dropna(how='all', inplace=True)
 
-    # sedentary mean
-    # hourofday
+        # 2013-03-27 04:00:00
+        # 2013-06-01 3:00:00
 
-    hours = s.index.get_level_values('time').hour
-    s['hourSine'] = np.sin(2 * np.pi * hours / 23.0)
-    s['hourCosine'] = np.cos(2 * np.pi * hours / 23.0)
+        # sedentary mean
+        # hourofday
 
-    # dayofweek
-    s['dayofweek'] = s.index.get_level_values('time').dayofweek
+        hours = s.index.get_level_values('time').hour
+        s['hourSine'] = np.sin(2 * np.pi * hours / 23.0)
+        s['hourCosine'] = np.cos(2 * np.pi * hours / 23.0)
 
-    # activitymajor
-    s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common)
+        # dayofweek
+        s['dayofweek'] = s.index.get_level_values('time').dayofweek
 
-    s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
-    s['remainingminutes'] = 24 * 60 - s['pastminutes']
+        # activitymajor
+        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common)
 
-    # prepare audio data
-    adata = pd.read_csv('sensing_data/audio.csv')
-    adata.columns = ['time', 'audioId', 'userId']
-    adata['time'] = pd.to_datetime(adata['time'], unit='s')
-    adata['time'] = adata['time'].dt.floor(freq)
+        s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
+        s['remainingminutes'] = 24 * 60 - s['pastminutes']
 
-    # audiomajor
-    # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
-    # s[s['audiomajor'].isna()].groupby('userId')['audiomajor'].count()
-    # s['audiomajor'] = np.NaN
-    # s['audiomajor'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common).astype('int')
+        # prepare audio data
+        adata = pd.read_csv('sensing_data/audio.csv')
+        adata.columns = ['time', 'audioId', 'userId']
+        adata['time'] = pd.to_datetime(adata['time'], unit='s')
+        adata['time'] = adata['time'].dt.floor(freq)
 
-    # 0	Silence
-    # 1	Voice
-    # 2	Noise
-    # 3	Unknow
+        # audiomajor
+        # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
+        # s[s['audiomajor'].isna()].groupby('userId')['audiomajor'].count()
+        # s['audiomajor'] = np.NaN
+        # s['audiomajor'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common).astype('int')
 
-    adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='act')], axis=1, sort=False)
+        # 0	Silence
+        # 1	Voice
+        # 2	Noise
+        # 3	Unknow
 
-    # logs per activity
-    s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
-    s.loc[:, 'voiceLevel'] = adata.groupby(['userId', 'time'])['act_1'].mean()
-    s.loc[:, 'noiseLevel'] = adata.groupby(['userId', 'time'])['act_2'].mean()
-    s.fillna(0, inplace=True)
+        adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='act')], axis=1, sort=False)
 
-    # latitude and longitude mean and std
-    gpsdata = pd.read_csv('sensing_data/gps.csv')
-    gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
-    gpsdata['time'] = gpsdata['time'].dt.floor(freq)
+        # logs per activity
+        s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
+        s.loc[:, 'voiceLevel'] = adata.groupby(['userId', 'time'])['act_1'].mean()
+        s.loc[:, 'noiseLevel'] = adata.groupby(['userId', 'time'])['act_2'].mean()
+        s.fillna(0, inplace=True)
 
-    # gpsdata.loc[gpsdata['travelstate'].isna() & gpsdata['speed']>0, 'travelstate'] = 'moving'
-    # gpsdata.loc[gpsdata['travelstate'].isna(), 'travelstate'] = 'stationary'
-    # kmeans = cluster.KMeans(15)
-    # kmeans.fit(gpsdata[['latitude', 'longitude']].values)
-    # gpsdata['place'] = kmeans.predict(gpsdata[['latitude', 'longitude']])
-    # s['place'] = gpsdata.groupby(['userId', 'time'])['place'].apply(Most_Common)
+        # latitude and longitude mean and std
+        gpsdata = pd.read_csv('sensing_data/gps.csv')
+        gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
+        gpsdata['time'] = gpsdata['time'].dt.floor(freq)
 
-    # s['distanceTraveled'] = gpsdata.groupby( by= ['userId', pd.Grouper(key='time', freq='H')])['latitude','longitude'].\
-    #   apply(get_total_harversine_distance_traveled)
-    # s['distanceTraveled'].fillna(0, inplace=True)
+        # gpsdata.loc[gpsdata['travelstate'].isna() & gpsdata['speed']>0, 'travelstate'] = 'moving'
+        # gpsdata.loc[gpsdata['travelstate'].isna(), 'travelstate'] = 'stationary'
+        # kmeans = cluster.KMeans(15)
+        # kmeans.fit(gpsdata[['latitude', 'longitude']].values)
+        # gpsdata['place'] = kmeans.predict(gpsdata[['latitude', 'longitude']])
+        # s['place'] = gpsdata.groupby(['userId', 'time'])['place'].apply(Most_Common)
 
-    s['locationVariance'] = gpsdata.groupby(['userId', 'time'])['longitude'].std() \
-                            + gpsdata.groupby(['userId', 'time'])['latitude'].std()
-    s['locationVariance'].fillna(0, inplace=True)
-    # calculo la distancia total recorrida por el usuario en una hora
+        # s['distanceTraveled'] = gpsdata.groupby( by= ['userId', pd.Grouper(key='time', freq='H')])['latitude','longitude'].\
+        #   apply(get_total_harversine_distance_traveled)
+        # s['distanceTraveled'].fillna(0, inplace=True)
 
-    # prepare charge data
-    chargedata = pd.read_csv('sensing_data/phonecharge.csv')
-    chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor(freq)
-    chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor(freq)
+        s['locationVariance'] = gpsdata.groupby(['userId', 'time'])['longitude'].std() \
+                                + gpsdata.groupby(['userId', 'time'])['latitude'].std()
+        s['locationVariance'].fillna(0, inplace=True)
+        # calculo la distancia total recorrida por el usuario en una hora
 
-    # isCharging
-    s['isCharging'] = False
-    for index, t in chargedata.iterrows():
-        for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-            try:
-                s.loc[[(t['userId'], date)], 'isCharging'] = True
-            except KeyError:
-                pass
+        # prepare charge data
+        chargedata = pd.read_csv('sensing_data/phonecharge.csv')
+        chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor(freq)
+        chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor(freq)
 
-    # prepare lock data
-    lockeddata = pd.read_csv('sensing_data/phonelock.csv')
-    lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor(freq)
-    lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor(freq)
-
-    # isLocked
-    s['isLocked'] = False
-    for index, t in lockeddata.iterrows():
-        for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-            try:
-                s.loc[[(t['userId'], date)], 'isLocked'] = True
-            except KeyError:
-                pass
-
-    # prepare dark data
-    darkdata = pd.read_csv('sensing_data/dark.csv')
-    darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor(freq)
-    darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor(freq)
-
-    # isInDark
-    s['isInDark'] = False
-    for index, t in darkdata.iterrows():
-        for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-            try:
-                s.loc[[(t['userId'], date)], 'isInDark'] = True
-            except KeyError:
-                pass
-
-    # prepare conversation data
-    conversationData = pd.read_csv('sensing_data/conversation.csv')
-    conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor(freq)
-    conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor(freq)
-
-    s['numberOfConversations'] = 0
-    for index, t in conversationData.iterrows():
-        if t['start_timestamp'] == t[' end_timestamp']:
-            try:
-                s.loc[[(t['userId'], t['start_timestamp'])], 'numberOfConversations'] += 1
-            except KeyError:
-                pass
-        else:
-            dates = pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq)
-            for date in pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq):
+        # isCharging
+        s['isCharging'] = False
+        for index, t in chargedata.iterrows():
+            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
                 try:
-                    s.loc[[(t['userId'], date)], 'cantConversation'] += 1
+                    s.loc[[(t['userId'], date)], 'isCharging'] = True
                 except KeyError:
                     pass
 
-    '''
-    #cargo los datos de deadlines
-    deadlines = pd.read_csv('sensing_data/deadlines.csv').iloc[:, 0:72]
-    deadlines = pd.melt(deadlines, id_vars='uid', var_name='time', value_name='exams')
-    deadlines['time'] = pd.to_datetime(deadlines['time'])
-    deadlines['uid'] = deadlines['uid'].str.replace('u', '', regex=True).astype('int')
-    deadlines = deadlines.loc[deadlines['exams'] > 0]
-    deadlines = deadlines.set_index('uid')
+        # prepare lock data
+        lockeddata = pd.read_csv('sensing_data/phonelock.csv')
+        lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor(freq)
+        lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor(freq)
 
+        # isLocked
+        s['isLocked'] = False
+        for index, t in lockeddata.iterrows():
+            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
+                try:
+                    s.loc[[(t['userId'], date)], 'isLocked'] = True
+                except KeyError:
+                    pass
 
-    a = pd.to_datetime(max(deadlines['time']), yearfirst=True)
-    b = pd.to_datetime(min(deadlines['time']), yearfirst=True)
-    maxTime = int((a-b).total_seconds()/3600)
+        # prepare dark data
+        darkdata = pd.read_csv('sensing_data/dark.csv')
+        darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor(freq)
+        darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor(freq)
 
-    #beforeNextDeadline
-    s['beforeNextDeadline'] = 0
-    def getHourstoNextDeadLine(user, date):
-        try: #para usuarios sobre los que no hay datos de examenes
-            possibledeadlines = deadlines.loc[user, 'time']
-            possibledeadlines = possibledeadlines[possibledeadlines >= date.floor('h')]
-            if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
-                deadline = min(possibledeadlines)
-                if date.floor('h') == deadline:
-                    return 0
-                else:
-                    diff = int((deadline - date).total_seconds()/3600)
-                return diff
-            return maxTime
-        except KeyError:
-            return maxTime
+        # isInDark
+        s['isInDark'] = False
+        for index, t in darkdata.iterrows():
+            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
+                try:
+                    s.loc[[(t['userId'], date)], 'isInDark'] = True
+                except KeyError:
+                    pass
 
+        # prepare conversation data
+        conversationData = pd.read_csv('sensing_data/conversation.csv')
+        conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor(
+            freq)
+        conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor(freq)
 
-    for ind, row in s.iterrows():
-        s.at[ind, 'beforeNextDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
+        s['numberOfConversations'] = 0
+        for index, t in conversationData.iterrows():
+            if t['start_timestamp'] == t[' end_timestamp']:
+                try:
+                    s.loc[[(t['userId'], t['start_timestamp'])], 'numberOfConversations'] += 1
+                except KeyError:
+                    pass
+            else:
+                dates = pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq)
+                for date in pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq):
+                    try:
+                        s.loc[[(t['userId'], date)], 'cantConversation'] += 1
+                    except KeyError:
+                        pass
 
-    #afterLastDeadline
-    s['afterLastDeadline'] = 0
-    def getHourstoNextDeadLine(user, date):
-        try: #para usuarios sobre los que no hay datos de examenes
-            possibledeadlines = deadlines.loc[user, 'time']
-            possibledeadlines = possibledeadlines[possibledeadlines < date.floor('h')]
-            if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
-                deadline = max(possibledeadlines)
-                if date.floor('h') == deadline:
-                    return 0
-                else:
-                    diff = int((date - deadline).total_seconds()/3600)
-                return diff
-            return maxTime
-        except KeyError:
-            return maxTime
+        '''
+        #cargo los datos de deadlines
+        deadlines = pd.read_csv('sensing_data/deadlines.csv').iloc[:, 0:72]
+        deadlines = pd.melt(deadlines, id_vars='uid', var_name='time', value_name='exams')
+        deadlines['time'] = pd.to_datetime(deadlines['time'])
+        deadlines['uid'] = deadlines['uid'].str.replace('u', '', regex=True).astype('int')
+        deadlines = deadlines.loc[deadlines['exams'] > 0]
+        deadlines = deadlines.set_index('uid')
+    
+    
+        a = pd.to_datetime(max(deadlines['time']), yearfirst=True)
+        b = pd.to_datetime(min(deadlines['time']), yearfirst=True)
+        maxTime = int((a-b).total_seconds()/3600)
+    
+        #beforeNextDeadline
+        s['beforeNextDeadline'] = 0
+        def getHourstoNextDeadLine(user, date):
+            try: #para usuarios sobre los que no hay datos de examenes
+                possibledeadlines = deadlines.loc[user, 'time']
+                possibledeadlines = possibledeadlines[possibledeadlines >= date.floor('h')]
+                if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
+                    deadline = min(possibledeadlines)
+                    if date.floor('h') == deadline:
+                        return 0
+                    else:
+                        diff = int((deadline - date).total_seconds()/3600)
+                    return diff
+                return maxTime
+            except KeyError:
+                return maxTime
+    
+    
+        for ind, row in s.iterrows():
+            s.at[ind, 'beforeNextDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
+    
+        #afterLastDeadline
+        s['afterLastDeadline'] = 0
+        def getHourstoNextDeadLine(user, date):
+            try: #para usuarios sobre los que no hay datos de examenes
+                possibledeadlines = deadlines.loc[user, 'time']
+                possibledeadlines = possibledeadlines[possibledeadlines < date.floor('h')]
+                if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
+                    deadline = max(possibledeadlines)
+                    if date.floor('h') == deadline:
+                        return 0
+                    else:
+                        diff = int((date - deadline).total_seconds()/3600)
+                    return diff
+                return maxTime
+            except KeyError:
+                return maxTime
+    
+    
+        for ind, row in s.iterrows():
+            s.at[ind, 'afterLastDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
+        '''
 
+        calendardata = pd.read_csv('sensing_data/calendar.csv')
+        calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
+        calendardata['time'] = calendardata['time'].dt.floor(freq)
+        calendardata = calendardata.set_index(['userId', 'time'])
 
-    for ind, row in s.iterrows():
-        s.at[ind, 'afterLastDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
-    '''
+        s['hasCalendarEvent'] = False
+        s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
 
-    calendardata = pd.read_csv('sensing_data/calendar.csv')
-    calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
-    calendardata['time'] = calendardata['time'].dt.floor(freq)
-    calendardata = calendardata.set_index(['userId', 'time'])
+        # hay datos sobre los wifi mas cercano y ademas sobre los que el usuario estuvo
+        # dentro del lugar dnd estaba el wifi,
+        # hasta elmomento no se utilizan los datos de wifi cercanos
+        # se deja el wifi mas cercano, ademas de la cantidad de wifis
+        # a los que se conecto cada usuario en una hora, que puede ser un indicador
+        # de sedentarismo
 
-    s['hasCalendarEvent'] = False
-    s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
+        wifidata = pd.read_csv('sensing_data/wifi_location.csv')
+        wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor(freq)
+        wifidataIn = wifidata.loc[wifidata['location'].str.startswith('in')]
+        label_encoder = LabelEncoder()
+        integer_encoded = label_encoder.fit_transform(wifidataIn['location'].values)
+        wifidataIn['location'] = integer_encoded
 
-    # hay datos sobre los wifi mas cercano y ademas sobre los que el usuario estuvo
-    # dentro del lugar dnd estaba el wifi,
-    # hasta elmomento no se utilizan los datos de wifi cercanos
-    # se deja el wifi mas cercano, ademas de la cantidad de wifis
-    # a los que se conecto cada usuario en una hora, que puede ser un indicador
-    # de sedentarismo
+        # s['wifiMajor'] = 0.0
+        # s['wifiMajor'] = wifidataIn.groupby(['userId', 'time'])['location'].apply(Most_Common)
+        # s.loc[s['wifiMajor'].isna()] = 0
+        wifidataIn.reset_index(inplace=True, drop=True)
 
-    wifidata = pd.read_csv('sensing_data/wifi_location.csv')
-    wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor(freq)
-    wifidataIn = wifidata.loc[wifidata['location'].str.startswith('in')]
-    label_encoder = LabelEncoder()
-    integer_encoded = label_encoder.fit_transform(wifidataIn['location'].values)
-    wifidataIn['location'] = integer_encoded
+        def funct(x):
+            changes = 1
+            last = x.iloc[0]
+            for v in x:
+                if v != last:
+                    changes += 1
+                last = v
+            return changes
 
-    # s['wifiMajor'] = 0.0
-    # s['wifiMajor'] = wifidataIn.groupby(['userId', 'time'])['location'].apply(Most_Common)
-    # s.loc[s['wifiMajor'].isna()] = 0
-    wifidataIn.reset_index(inplace=True, drop=True)
+        s['wifiChanges'] = wifidataIn.groupby(['userId', 'time'])['location'].apply(funct)
+        s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
 
-    def funct(x):
-        changes = 1
-        last = x.iloc[0]
-        for v in x:
-            if v != last:
-                changes += 1
-            last = v
-        return changes
+        # a = wifidataIn.groupby(['userId', 'time'])['location']
+        # wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
 
-    s['wifiChanges'] = wifidataIn.groupby(['userId', 'time'])['location'].apply(funct)
-    s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
+        s.to_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))
+    else:
+        print('sensing_data already generated')
 
-    # a = wifidataIn.groupby(['userId', 'time'])['location']
-    # wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
-
-    s.to_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))
+    return pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))

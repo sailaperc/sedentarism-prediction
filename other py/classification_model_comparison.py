@@ -1,13 +1,17 @@
 import matplotlib.pyplot as plt
-from utils import *
 from keras.wrappers.scikit_learn import KerasClassifier
-from sklearn.naive_bayes import GaussianNB, BernoulliNB
-import numpy
-numpy.random.seed(7)
-
-from sklearn.svm import SVC
+import numpy as np
+np.random.seed(7)
+import pandas as pd
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, BatchNormalization, Activation
+from sklearn.linear_model import LogisticRegression
+from preprocessing.studentlife_raw import student_data_preprocessing
+from preprocessing.datasets import get_lagged_dataset
+from personal_impersonal import per_user, live_one_out
 
 def show_metric(title, ylabel, labels, data, markers=('s','^'), colors=('b','r')):
+    df = student_data_preprocessing()
     users = np.arange(1, 49)
     userslabel = df.index.get_level_values(0).drop_duplicates()
     plt.close()
@@ -41,35 +45,40 @@ df.drop(['hourofday'],
         axis=1, inplace=True)
 '''
 
-estimator = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=512, verbose=2)
-modelnn = create_model(estimator)
-estimator2 = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=32, verbose=2)
-modelnn2 = create_model(estimator2)
+def baseline_model():
+    estimator = Sequential([
+    Dense(256,input_dim=28,kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
+    BatchNormalization(),
+    Activation('relu'),
+    Dense(128, kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
+    BatchNormalization(),
+    Activation('relu'),
+    Dense(64, kernel_initializer='uniform',kernel_regularizer='l2',use_bias=False),
+    BatchNormalization(),
+    Activation('relu'),
+    Dense(32, kernel_initializer='uniform', kernel_regularizer='l2',use_bias=False),
+    BatchNormalization(),
+    Activation('relu'),
+    Dense(1, activation='sigmoid')
+    ])
+    estimator.compile(loss='binary_crossentropy',
+                  optimizer='adam',
+                  metrics=['binary_accuracy'])
+    return estimator
 
-clf = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
-model = create_model(clf)
+
+df = get_lagged_dataset('classification')
+
+modelnn = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=512, verbose=2)
+modelnn2 = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=32, verbose=2)
+
+modellr = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
+
+model_type = 'classification'
+b = per_user(df, modelnn, 'classification')
 
 '''
-#f1_p_nn = per_user_classification(df, modelnn, True)
-f1_p_logreg = per_user_classification(df, model, True)
-#pd.to_pickle(f1_p_logreg,'f1_p_logreg_withsleep')
 
-a = pd.read_pickle('f1_p_logreg_withsleep')
-b = pd.read_pickle('f1_p_logreg_withoutsleep')
-
-
-f1_imp_nn = live_one_out_classification(df, modelnn, True)
-f1_imp_nn1 = pd.read_pickle('f1_imp_nn_withsleep')
-f1_imp_nn2 = pd.read_pickle('f1_imp_nn_withoutsleep')
-
-pd.to_pickle(f1_imp_nn1,'f1_imp_nn_withoutsleep')
-pd.to_pickle(f1_imp_nn2,'f1_imp_nn_withsleep')
-
-f1_imp_logreg = live_one_out_classification(df, model, True)
-
-b = df.groupby(df.index.get_level_values(0))['sclass'].apply(lambda x : np.sum(x==1)).values
-c = df.groupby(df.index.get_level_values(0))['sclass'].count().values
-b = b/c
 
 """
 show_metric('Model F1-score for impersonal models ',
@@ -88,85 +97,4 @@ show_metric('',
             ['Impersonal', 'Personal'],
             [pd.read_pickle('f1_imp_nn_withoutsleep'), pd.read_pickle('f1_p_logreg_withoutsleep')])
 '''
-print('f1_imp_nn_withsleep')
-print(np.mean(pd.read_pickle('f1_imp_nn_withsleep')))
-print(np.std(pd.read_pickle('f1_imp_nn_withsleep')))
-print('f1_imp_nn_withoutsleep')
-print(np.mean(pd.read_pickle('f1_imp_nn_withoutsleep')))
-print(np.std(pd.read_pickle('f1_imp_nn_withoutsleep')))
-print('f1_imp_logreg_withsleep')
-print(np.mean(pd.read_pickle('f1_imp_logreg_withsleep')))
-print(np.std(pd.read_pickle('f1_imp_logreg_withsleep')))
-print('f1_imp_logreg_withoutsleep')
-print(np.mean(pd.read_pickle('f1_imp_logreg_withoutsleep')))
-print(np.std(pd.read_pickle('f1_imp_logreg_withoutsleep')))
-print('f1_p_logreg_withsleep')
-print(np.mean(pd.read_pickle('f1_p_logreg_withsleep')))
-print(np.std(pd.read_pickle('f1_p_logreg_withsleep')))
-print('f1_p_logreg_withoutsleep')
-print(np.mean(pd.read_pickle('f1_p_logreg_withoutsleep')))
-print(np.std(pd.read_pickle('f1_p_logreg_withoutsleep')))
-print('f1_p_nn_withsleep')
-print(np.mean(pd.read_pickle('f1_p_nn_withsleep')))
-print(np.std(pd.read_pickle('f1_p_nn_withsleep')))
-print('f1_p_nn_withoutsleep')
-print(np.mean(pd.read_pickle('f1_p_nn_withoutsleep')))
-print(np.std(pd.read_pickle('f1_p_nn_withoutsleep')))
 
-
-df = pd.read_pickle('sedentarismdata.pkl')
-df = delete_user(df,52)
-df = METcalculation(df)
-df = makeSedentaryClasses(df)
-df = makeDummies(df)
-df = shift_hours(df,1, 'classification')
-df.drop(['hourofday'],
-        axis=1, inplace=True)
-#pd.to_pickle(live_one_out_classification(df, modelnn),'f1_imp_nn_withsleep')
-pd.to_pickle(live_one_out_classification(df, model),'f1_imp_logreg_withsleep')
-#pd.to_pickle(per_user_classification(df, model),'f1_p_logreg_withsleep')
-#data = df.loc[ (df.index.get_level_values(0) >= 50) & (df.index.get_level_values(0)<60) ]
-#pd.to_pickle(per_user_classification(data, modelnn2),'f1_p_nn_withsleep_6')
-
-df = pd.read_pickle('sedentarismdata.pkl')
-df = delete_user(df,52)
-df = METcalculation(df)
-df = delete_sleep_hours(df)
-df = makeSedentaryClasses(df)
-df = makeDummies(df)
-df = shift_hours(df,1, 'classification')
-df.drop(['hourofday'],
-        axis=1, inplace=True)
-#pd.to_pickle(live_one_out_classification(df, modelnn),'f1_imp_nn_withoutsleep')
-#pd.to_pickle(live_one_out_classification(df, model),'f1_imp_logreg_withoutsleep')
-#pd.to_pickle(per_user_classification(df, model),'f1_p_logreg_withoutsleep')
-data = df.loc[ (df.index.get_level_values(0) >= 50) & (df.index.get_level_values(0)<60) ]
-pd.to_pickle(per_user_classification(data, modelnn2),'f1_p_nn_withoutsleep_5')
-
-
-def join_pkls(name):
-    f1 = []
-    for i in np.arange(1,6):
-        f1.extend(pd.read_pickle(name + '_' + str(i)))
-    pd.to_pickle(f1,name)
-
-join_pkls('f1_p_nn_withsleep')
-join_pkls('f1_p_nn_withoutsleep')
-
-pkl = pd.read_pickle('f1_p_nn_withoutsleep')
-np.mean(pkl)
-
-
-a = pd.read_pickle('f1_imp_nn_withoutsleep')
-b = pd.read_pickle('f1_p_nn_withoutsleep')
-
-plt.boxplot(a)
-plt.show()
-c = df.groupby(df.index.get_level_values(0))['noiseLevel'].count().values
-
-data = pd.DataFrame(data={'f1':a,
-                          'count':c})
-
-plt.close()
-sns.lmplot(x='count',y='f1', data=data)
-plt.show()
