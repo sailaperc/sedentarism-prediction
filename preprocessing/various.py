@@ -56,6 +56,6 @@ def delete_user(df, user):
 
 
 def delete_sleep_hours(df):
-    return df.loc[(dfcopy['slevel'] >= 1.5) |
-                  ((dfcopy.index.get_level_values(1).hour < 22) &
-                   (dfcopy.index.get_level_values(1).hour > 5))]
+    return df.loc[(df['sclass'] >= 1.0) |
+                  ((df.index.get_level_values(1).hour < 22) &
+                   (df.index.get_level_values(1).hour > 5))]
