@@ -1,8 +1,8 @@
 from matplotlib import pyplot as plt
 import pandas as pd
 from pandas.plotting import autocorrelation_plot
-from utils_graphic import plot_by_week
-from utils import get_user_data
+from utils.utils_graphic import plot_by_week
+from utils.utils import get_user_data
 
 lista = []
 df = pd.read_pickle('./pkl/dataset_gran1h.pkl')

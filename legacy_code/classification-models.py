@@ -1,17 +1,12 @@
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.utils import to_categorical
-from keras.optimizers import SGD
-import pandas as pd
 import numpy as np
-from utils import *
-from imblearn.over_sampling import SMOTE
+from utils.utils import *
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 from sklearn.linear_model import LogisticRegression
 from sklearn.dummy import DummyClassifier
 import matplotlib.pyplot as plt
-from keras.layers import Dense, Dropout, BatchNormalization, Activation
+from keras.layers import Dense, BatchNormalization, Activation
 
 df = pd.read_pickle('sedentarismdata.pkl')
 df = delete_user(df,52)

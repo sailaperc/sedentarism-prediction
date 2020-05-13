@@ -1,6 +1,5 @@
 from sklearn.model_selection import train_test_split
-from utils import get_user_data, get_not_user_data
-import pandas as pd
+from utils.utils import get_user_data, get_not_user_data
 from sklearn.preprocessing import StandardScaler
 from preprocessing.datasets import get_lagged_dataset
 

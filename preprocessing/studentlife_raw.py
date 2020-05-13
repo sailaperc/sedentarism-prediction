@@ -51,7 +51,7 @@ from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
 from collections import Counter
-from utils import file_exists
+from utils.utils import file_exists
 
 
 '''
@@ -104,7 +104,7 @@ def createSensingTables():
 
 
 def student_data_preprocessing(freq='1h'):
-    if not file_exists('pkl/sedentarismdata_gran{0}.pkll'.format(freq)):
+    if not file_exists('pkl/sedentarismdata_gran{0}.pkl'.format(freq)):
 
         # prepare activity data
         sdata = pd.read_csv('sensing_data/activity.csv')

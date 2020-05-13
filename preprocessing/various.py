@@ -1,5 +1,4 @@
 import pandas as pd
-from utils import file_exists
 
 
 def addSedentaryLevel(df, metValues=(1.3, 5, 8.3)):
@@ -55,7 +54,7 @@ def delete_user(df, user):
     return df.copy().loc[df.index.get_level_values(0) != user]
 
 
-def delete_sleep_hours(df):
-    return df.loc[(df['sclass'] >= 1.0) |
+def delete_sleep_buckets(df):
+    return df.loc[(df['slevel'] >= 1.5) |
                   ((df.index.get_level_values(1).hour < 22) &
                    (df.index.get_level_values(1).hour > 5))]

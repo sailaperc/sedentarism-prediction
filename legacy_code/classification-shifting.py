@@ -1,19 +1,10 @@
 from sklearn.linear_model import LogisticRegression
 import matplotlib.pyplot as plt
-from utils import *
-from sklearn import linear_model
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import make_pipeline
-from sklearn.model_selection import cross_validate
 from keras.models import Sequential
-from keras.layers import Dense, Dropout
-from keras.utils import to_categorical
+from keras.layers import Dense
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
-from keras.wrappers.scikit_learn import KerasClassifier
-
 
 from numpy.random import seed
 seed(7)

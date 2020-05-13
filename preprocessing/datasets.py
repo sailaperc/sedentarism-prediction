@@ -1,10 +1,11 @@
 import pandas as pd
 import numpy as np
-from utils import get_user_data, file_exists
+from utils.utils import get_user_data, file_exists
 from preprocessing.various import addSedentaryClasses
-from preprocessing.various import delete_user, makeDummies, addSedentaryLevel
+from preprocessing.various import delete_user, makeDummies, addSedentaryLevel, delete_sleep_buckets
 
-def shift_data(df, n, columns=None):
+
+def shift_data(df, n):
     '''
     Shift the dataset n hours. If
 
@@ -12,10 +13,10 @@ def shift_data(df, n, columns=None):
     :param columns: the columns that should be shifted,
     :return:
     '''
-    dfcopy = df.copy().sort_index()
-    if columns is None:
-        columns = df.columns
-    for ind, row in dfcopy.iterrows():
+    dfcopy = df.copy()
+    columns = df.columns
+    #TODO: adapt to a different granularity
+    for ind, _ in dfcopy.iterrows():
         try:
             dfcopy.loc[(ind[0], ind[1]), columns] = dfcopy.loc[(ind[0], ind[1] + pd.DateOffset(hours=n)), columns]
         except KeyError:
@@ -40,7 +41,7 @@ def concatenate_shift_data(df, dropnan=True, nb_lags=None, period=1):
     # print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
     for i in range(len(lags), 0, -1):
-        data.append(shift_data(df, lags[i - 1], df.columns))
+        data.append(shift_data(df, lags[i - 1]))
         names += [('{0}(t-{1})'.format(columns[j], lags[i - 1])) for j in range(n_vars)]
     data.append(df.iloc[:, -1])
     names += [('{0}'.format(columns[-1]))]
@@ -80,7 +81,7 @@ def get_dataset(gran='1h'):
     return pd.read_pickle(file_name)
 
 
-def generate_lagged_dataset(file_name, model_type='regression', nb_lags=1, period=1, gran='1h'):
+def generate_lagged_dataset(file_name, model_type, included_data, nb_lags=1, period=1, gran='1h'):
     '''
     Calls series_to_supervised for every user (otherwise user information would be merged) and then combines it.
     The resulting dataset is saved in the path 'pkl/datasets/gran{}_period{}_lags{}.pkl'
@@ -89,9 +90,12 @@ def generate_lagged_dataset(file_name, model_type='regression', nb_lags=1, perio
     '''
 
     assert (model_type == 'regression' or model_type == 'classification'), 'Not a valid model type.'
+    assert (included_data == 'ws' or included_data == 'wos'), f'included_data must be ws or wos'
 
     df = get_dataset(gran=gran)
 
+    if included_data == 'wos':
+        df = delete_sleep_buckets(df)
     if model_type == 'classification':
         df = addSedentaryClasses(df)
 
@@ -104,23 +108,20 @@ def generate_lagged_dataset(file_name, model_type='regression', nb_lags=1, perio
     del df
 
 
-def get_lagged_dataset(model_type, nb_lags=1, period=1, gran='1h', user=-1):
+def get_lagged_dataset(model_type, included_data, user=-1, nb_lags=1, period=1, gran='1h'):
     '''
     Get a specific and already generated dataset based on nb_lags, period, gran.
     If personal is true, only returns the specific users data
 
     '''
 
-    filename = 'pkl/datasets/{0}_gran{1}_period{2}_lags{3}.pkl'.format(model_type, gran, period, nb_lags)
+    filename = f'pkl/datasets/{model_type}_{included_data}_gran{gran}_period{period}_lags{nb_lags}.pkl'
     if not file_exists(filename):
         print('Lagged dataset not found.')
         print(
-            'Generating lagged dataset with period gran: {0}, period: {1} and nb_lags={2} for a {3} model.'.format(gran,
-                                                                                                                   period,
-                                                                                                                   nb_lags,
-                                                                                                                   model_type))
-        generate_lagged_dataset(filename, model_type, nb_lags, period, gran)
-
+            f'Generating lagged dataset with period '
+            f'gran: {gran}, period: {period} and nb_lags={nb_lags} for a {model_type} model (with data {included_data}.)')
+        generate_lagged_dataset(filename, model_type, included_data, nb_lags, period, gran)
     data = pd.read_pickle(filename)
     if user != -1:
         return get_user_data(data, user)
