@@ -104,8 +104,9 @@ def createSensingTables():
 
 
 def student_data_preprocessing(freq='1h'):
-    if not file_exists('pkl/sedentarismdata_gran{0}.pkl'.format(freq)):
-
+    filename = f'pkl/sedentarismdata_gran{freq}.pkl'
+    if not file_exists(filename):
+        print(f'{filename} does not exist. This may take a while...')
         # prepare activity data
         sdata = pd.read_csv('sensing_data/activity.csv')
         sdata.columns = ['time', 'activityId', 'userId']

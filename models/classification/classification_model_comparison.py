@@ -1,19 +1,19 @@
-import matplotlib.pyplot as plt
 from keras.wrappers.scikit_learn import KerasClassifier
 import numpy as np
 from pympler.tracker import SummaryTracker
+from pympler import summary, muppy
 from keras.models import Sequential
 from keras.layers import Dense, BatchNormalization, Activation
 from sklearn.linear_model import LogisticRegression
-from preprocessing.studentlife_raw import student_data_preprocessing
 from preprocessing.datasets import get_lagged_dataset
 from models.personal_impersonal import per_user, live_one_out
-import pickle as pkl
 import time
 from utils.utils import file_exists
 import random
+import gc
 
 np.random.seed(7)
+
 
 def baseline_model():
     estimator = Sequential([
@@ -38,15 +38,32 @@ def baseline_model():
 
 
 def run_classification_models():
+    model_type = 'classification'
+    df_ws = get_lagged_dataset(model_type, included_data='ws')
+    df_wos = get_lagged_dataset(model_type, included_data='wos')
+
+    datasets = {'ws': df_ws, 'wos': df_wos}
+
+    modelnnImp = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=512, verbose=0)
+    modelnnPer = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=32, verbose=0)
+    modellr = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
+
+    models = {"lr": {"personal": modellr, "impersonal": modellr},
+              "nn": {"personal": modelnnPer, "impersonal": modelnnImp}}
+
     tracker = SummaryTracker()
+    sum1 = summary.summarize(muppy.get_objects())
+    print(f'\nMemeroy in use... \n {"*" * 10}')
+    summary.print_(sum1)
     times = {}
+
     for kdata in datasets.keys():
         data = datasets[kdata]
         for t in ["personal", "impersonal"]:
             for kmodel in models.keys():
-                run_info = f'{model_type}_{kdata}_{t}_{kmodel}'
+                run_info = f'_{model_type}_{kdata}_{t}_{kmodel}'
                 filename = f'pkl/results/{run_info}.pkl'
-                if (file_exists(filename)):
+                if file_exists(filename):
                     print(f'{run_info} models already tested... skipping')
                 else:
                     print(f'Running {model_type} for model {t} and {kmodel}, with data {kdata}')
@@ -69,25 +86,36 @@ def run_classification_models():
                     pkl.dump(results, results_file)
                     results_file.close()
 
+                    # Printing obkect usage information for identifying memory leaks
+                    sum1 = summary.summarize(muppy.get_objects())
+                    print(f'\nMemeroy in use... \n {"*" * 10}')
+                    summary.print_(sum1)
+                    print(f'\nDifference of memory usage from last print... \n {"*" * 10}')
                     tracker.print_diff()
+                    gc.collect()
     return times
 
 
-def get_classification_results():
-    results = {}
-    for sh in ["ws", "wos"]:
-        for t in ["personal", "impersonal"]:
-            for k in ['lr','nn']:
-                name = f'classification_{sh}_{t}_{k}'
-                results[name] = pkl.load(open(f'pkl/results/{name}.pkl', 'rb'))
-    return results
+
+from os import listdir
+import pickle as pkl
+import matplotlib.pyplot as plt
+
+def get_classification_results(keywords):
+    return [(f[0:-4], pkl.load(open(f'./pkl/results/{f}', 'rb'))) for f in listdir('./pkl/results') if all(f'_{k}' in f for k in keywords)]
+
+
+def print_classification_results(keywords):
+    (names, results) = map(list, zip(*get_classification_results(keywords)))
+    show_metric('', 'F1-Score', names, results)
 
 
 def show_metric(title, ylabel, labels, data):
-    df = student_data_preprocessing()
+    df = get_lagged_dataset(included_data='ws', model_type='classification')
     users = np.arange(1, 49)
     userslabel = df.index.get_level_values(0).drop_duplicates()
     plt.close()
+    print(len(users))
     for d in data:
         plt.scatter(users, d, marker='s', c=(random.random(), random.random(), random.random()))
     plt.title(title)
@@ -100,25 +128,6 @@ def show_metric(title, ylabel, labels, data):
     plt.grid(True)
     plt.show()
 
-def print_classification_results():
-    results = get_classification_results()
-    show_metric('', 'F1-Score', [x for x in results.keys()], [x for x in results.values()])
-
-
-model_type = 'classification'
-df_ws = get_lagged_dataset(model_type, included_data='ws')
-df_wos = get_lagged_dataset(model_type, included_data='wos')
-
-
-datasets = {'ws': df_ws, 'wos': df_wos}
-
-modelnnImp = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=512, verbose=0)
-modelnnPer = KerasClassifier(build_fn=baseline_model, epochs=30, batch_size=32, verbose=0)
-modellr = LogisticRegression(solver='liblinear', max_iter=400, class_weight='balanced')
-
-models = {"lr": {"personal": modellr, "impersonal": modellr},
-          "nn": {"personal": modelnnPer, "impersonal": modelnnImp}}
-
 if __name__ == '__main__':
-    run_classification_models()
-    print_classification_results()
+    #run_classification_models()
+    print_classification_results(['wos','impersonal'])

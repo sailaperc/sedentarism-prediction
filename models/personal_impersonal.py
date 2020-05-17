@@ -46,8 +46,7 @@ def live_one_out(df, model, model_type):
         if i % 10 == 0:
             print('modelos sobre usuario ', i, ' finalizado.')
         i += 1
-        del x_train
-        del x_test
-        del y_train
-        del y_test
+
+        del x_train; del x_test; del y_train; del y_test; del y_pred
+    del x; del y
     return scores
