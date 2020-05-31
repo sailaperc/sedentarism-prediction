@@ -1,0 +1,15 @@
+Usuario 50 - Arquitectura 1- mae(train): 0.113- mae(test)0.102
+Usuario 50 - Arquitectura 2- mae(train): 0.122- mae(test)0.097
+Usuario 50 - Arquitectura 3- mae(train): 0.1- mae(test)0.086
+Usuario 50 - Arquitectura 4- mae(train): 0.092- mae(test)0.109
+
+Usuario 31 - Arquitectura 1- mae(train): 0.199- mae(test)0.306
+Usuario 31 - Arquitectura 2- mae(train): 0.25- mae(test)0.325
+Usuario 31 - Arquitectura 3- mae(train): 0.201- mae(test)0.282
+Usuario 31 - Arquitectura 4- mae(train): 0.18- mae(test)0.285
+
+Usuario 4 - Arquitectura 1- mae(train): 0.39- mae(test)0.528
+Usuario 4 - Arquitectura 2- mae(train): 0.53- mae(test)0.537
+Usuario 4 - Arquitectura 3- mae(train): 0.44- mae(test)0.479
+Usuario 4 - Arquitectura 4- mae(train): 0.368- mae(test)0.529
+

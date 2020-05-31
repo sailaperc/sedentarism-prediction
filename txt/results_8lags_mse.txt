@@ -1,0 +1,15 @@
+Usuario 50 - Arquitectura 1- mse(train): 0.041- mse(test)0.055
+Usuario 50 - Arquitectura 2- mse(train): 0.059- mse(test)0.031
+Usuario 50 - Arquitectura 3- mse(train): 0.04- mse(test)0.036
+Usuario 50 - Arquitectura 4- mse(train): 0.016- mse(test)0.051
+
+Usuario 31 - Arquitectura 1- mse(train): 0.07- mse(test)0.428
+Usuario 31 - Arquitectura 2- mse(train): 0.186- mse(test)0.322
+Usuario 31 - Arquitectura 3- mse(train): 0.113- mse(test)0.313
+Usuario 31 - Arquitectura 4- mse(train): 0.022- mse(test)0.337
+
+Usuario 4 - Arquitectura 1- mse(train): 0.219- mse(test)1.148
+Usuario 4 - Arquitectura 2- mse(train): 0.566- mse(test)0.608
+Usuario 4 - Arquitectura 3- mse(train): 0.378- mse(test)0.64
+Usuario 4 - Arquitectura 4- mse(train): 0.125- mse(test)0.784
+

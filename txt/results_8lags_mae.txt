@@ -1,0 +1,16 @@
+Usuario 50 - Arquitectura 1- mae(train): 0.105- mae(test)0.14
+Usuario 50 - Arquitectura 2- mae(train): 0.113- mae(test)0.09
+Usuario 50 - Arquitectura 3- mae(train): 0.103- mae(test)0.123
+Usuario 50 - Arquitectura 4- mae(train): 0.075- mae(test)0.145
+
+Usuario 31 - Arquitectura 1- mae(train): 0.165- mae(test)0.359
+Usuario 31 - Arquitectura 2- mae(train): 0.258- mae(test)0.331
+Usuario 31 - Arquitectura 3- mae(train): 0.189- mae(test)0.334
+Usuario 31 - Arquitectura 4- mae(train): 0.092- mae(test)0.339
+
+Usuario 4 - Arquitectura 1- mae(train): 0.324- mae(test)0.682
+Usuario 4 - Arquitectura 2- mae(train): 0.553- mae(test)0.53
+Usuario 4 - Arquitectura 3- mae(train): 0.434- mae(test)0.546
+Usuario 4 - Arquitectura 4- mae(train): 0.233- mae(test)0.573
+
+Bai, Shaojie, Kolter, J. Zico, and Koltun, Vladlen. 2018. “An Empirical Evaluation of Generic Convolutional and Recurrent Networks for Sequence Modeling”. arXiv:1803.01271v2 [cs.LG] 19 Apr 2018
