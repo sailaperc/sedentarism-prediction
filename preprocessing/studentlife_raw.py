@@ -52,7 +52,7 @@ import pandas as pd
 import numpy as np
 from collections import Counter
 from utils.utils import file_exists
-
+from datetime import datetime
 
 '''
 def get_total_harversine_distance_traveled(x):
@@ -67,18 +67,14 @@ def get_total_harversine_distance_traveled(x):
 '''
 
 
-def Most_Common(lst):
-    data = Counter(lst)
-    return data.most_common(1)[0][0]
-
-
-def createSensingTable(sensor):
+def create_sensing_table(sensor):
     """
     Creates one dataframe from all the sensor data of all users
 
     dataset raw data should be at dataset/sensing/ in the project folder
     """
-    if file_exists('sensing_data/' + sensor + '.csv'):
+    filename = f'pkl/sensing_data/{sensor}.pkl'
+    if file_exists(filename):
         print('sensing_data already generated')
     else:
         path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
@@ -92,38 +88,57 @@ def createSensingTable(sensor):
                 df = df.append(aux)
             except:
                 pass
-        df.to_csv('sensing_data/' + sensor + '.csv', index=False)
+        df.to_pickle(filename)
 
 
-def createSensingTables():
+def create_sensing_tables():
     sensor_data_files = ['activity', 'audio', 'gps', 'dark',
                          'phonelock', 'wifi', 'phonecharge',
                          'calendar', 'wifi_location', 'conversation']
     for file in sensor_data_files:
-        createSensingTable(file)
+        create_sensing_table(file)
 
 
-def student_data_preprocessing(freq='1h'):
+def get_sensor_data(sensor) -> pd.DataFrame:
+    return pd.read_pickle(f'pkl/sensing_data/{sensor}.pkl')
+
+
+def get_studentlife_dataset(freq='1h'):
+    def Most_Common(lst):
+        data = Counter(lst)
+        return data.most_common(1)[0][0]
+
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
         print(f'{filename} does not exist. This may take a while...')
         # prepare activity data
-        sdata = pd.read_csv('sensing_data/activity.csv')
+        sdata = get_sensor_data('activity')
         sdata.columns = ['time', 'activityId', 'userId']
         sdata = sdata.loc[sdata['activityId'] != 3]
+        min_date = datetime.fromtimestamp(min(sdata.time))
+        max_date = datetime.fromtimestamp(max(sdata.time))
+
         sdata['time'] = pd.to_datetime(sdata['time'], unit='s').dt.floor(freq)
+
+        '''
+        Set dataset index from the cartesian product between
+        the users id and
+        the minimun and maximun date found
+
+        '''
         s = pd.DataFrame(index=pd.MultiIndex.from_product(iterables=[sdata['userId'].drop_duplicates(),
-                                                                     pd.date_range('2013-03-27 04:00:00',
-                                                                                   '2013-06-01 3:00:00',
+                                                                     pd.date_range(min_date,
+                                                                                   max_date,
                                                                                    freq=freq)],
                                                           names=['userId', 'time']))
 
         sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
 
         # logs per activity
-        s.loc[:, 'stationaryLevel'] = sdata.groupby(['userId', 'time'])['act_0'].mean()
-        s.loc[:, 'walkingLevel'] = sdata.groupby(['userId', 'time'])['act_1'].mean()
-        s.loc[:, 'runningLevel'] = sdata.groupby(['userId', 'time'])['act_2'].mean()
+        grouped = sdata.groupby(['userId', 'time'])
+        s.loc[:, 'stationaryLevel'] = grouped['act_0'].mean()
+        s.loc[:, 'walkingLevel'] = grouped['act_1'].mean()
+        s.loc[:, 'runningLevel'] = grouped['act_2'].mean()
         s.dropna(how='all', inplace=True)
 
         # 2013-03-27 04:00:00
@@ -146,7 +161,7 @@ def student_data_preprocessing(freq='1h'):
         s['remainingminutes'] = 24 * 60 - s['pastminutes']
 
         # prepare audio data
-        adata = pd.read_csv('sensing_data/audio.csv')
+        adata = get_sensor_data('audio')
         adata.columns = ['time', 'audioId', 'userId']
         adata['time'] = pd.to_datetime(adata['time'], unit='s')
         adata['time'] = adata['time'].dt.floor(freq)
@@ -171,7 +186,7 @@ def student_data_preprocessing(freq='1h'):
         s.fillna(0, inplace=True)
 
         # latitude and longitude mean and std
-        gpsdata = pd.read_csv('sensing_data/gps.csv')
+        gpsdata = get_sensor_data('gps')
         gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
         gpsdata['time'] = gpsdata['time'].dt.floor(freq)
 
@@ -192,7 +207,7 @@ def student_data_preprocessing(freq='1h'):
         # calculo la distancia total recorrida por el usuario en una hora
 
         # prepare charge data
-        chargedata = pd.read_csv('sensing_data/phonecharge.csv')
+        chargedata = get_sensor_data('phonecharge')
         chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor(freq)
         chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor(freq)
 
@@ -206,7 +221,7 @@ def student_data_preprocessing(freq='1h'):
                     pass
 
         # prepare lock data
-        lockeddata = pd.read_csv('sensing_data/phonelock.csv')
+        lockeddata = get_sensor_data('phonelock')
         lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor(freq)
         lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor(freq)
 
@@ -220,7 +235,7 @@ def student_data_preprocessing(freq='1h'):
                     pass
 
         # prepare dark data
-        darkdata = pd.read_csv('sensing_data/dark.csv')
+        darkdata = get_sensor_data('sensing_data/dark.csv')
         darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor(freq)
         darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor(freq)
 
@@ -234,7 +249,7 @@ def student_data_preprocessing(freq='1h'):
                     pass
 
         # prepare conversation data
-        conversationData = pd.read_csv('sensing_data/conversation.csv')
+        conversationData = get_sensor_data('conversation')
         conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor(
             freq)
         conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor(freq)
@@ -256,7 +271,7 @@ def student_data_preprocessing(freq='1h'):
 
         '''
         #cargo los datos de deadlines
-        deadlines = pd.read_csv('sensing_data/deadlines.csv').iloc[:, 0:72]
+        deadlines = get_sensor_data('deadlines').iloc[:, 0:72]
         deadlines = pd.melt(deadlines, id_vars='uid', var_name='time', value_name='exams')
         deadlines['time'] = pd.to_datetime(deadlines['time'])
         deadlines['uid'] = deadlines['uid'].str.replace('u', '', regex=True).astype('int')
@@ -311,7 +326,7 @@ def student_data_preprocessing(freq='1h'):
             s.at[ind, 'afterLastDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
         '''
 
-        calendardata = pd.read_csv('sensing_data/calendar.csv')
+        calendardata = get_sensor_data('calendar')
         calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
         calendardata['time'] = calendardata['time'].dt.floor(freq)
         calendardata = calendardata.set_index(['userId', 'time'])
@@ -326,7 +341,7 @@ def student_data_preprocessing(freq='1h'):
         # a los que se conecto cada usuario en una hora, que puede ser un indicador
         # de sedentarismo
 
-        wifidata = pd.read_csv('sensing_data/wifi_location.csv')
+        wifidata = get_sensor_data('wifi_location')
         wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor(freq)
         wifidataIn = wifidata.loc[wifidata['location'].str.startswith('in')]
         label_encoder = LabelEncoder()
@@ -353,8 +368,8 @@ def student_data_preprocessing(freq='1h'):
         # a = wifidataIn.groupby(['userId', 'time'])['location']
         # wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
 
-        s.to_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))
+        s.to_pickle(filename)
     else:
-        print('sensing_data already generated')
+        print('Prepocessed StudentLife dataset already generated!')
 
-    return pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(freq))
+    return pd.read_pickle(filename)

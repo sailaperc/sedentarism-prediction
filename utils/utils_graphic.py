@@ -7,14 +7,13 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import colors
 
-df = pd.read_pickle('./pkl/dataset_gran1h.pkl')
-
 
 def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
     '''
     Plot the cumulative activity type of a specific user between mindate and maxdate
     The default mindate and mindate is too broad and does not work
     '''
+    df = get_lagged_dataset()
 
     data = get_user_data(df, user)
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
@@ -78,7 +77,7 @@ def plot_heatmap(metric, user=-1):
     The metric can be 'mean' or 'std'
 
     '''
-
+    df = get_lagged_dataset()
     plt.close()
     if user >= 0:
         dfuser = get_user_data(df, user)

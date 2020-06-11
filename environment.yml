@@ -149,4 +149,3 @@ dependencies:
   - pip:
     - pyaml==20.4.0
     - scikit-optimize==0.7.4
-prefix: C:\Users\qpr\Miniconda3\envs\tesis
