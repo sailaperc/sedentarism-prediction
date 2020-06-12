@@ -72,7 +72,7 @@ def get_dataset(gran='1h'):
 
     '''
 
-    file_name = f'pkl/dataset_gran{gran}.pkl'
+    file_name = f'../pkl/dataset_gran{gran}.pkl'
     if not file_exists(file_name):
         print('Dataset does not exist.')
         print(f'Generating dataset with gran: {gran}')
@@ -115,7 +115,7 @@ def get_lagged_dataset(model_type, included_data, user=-1, nb_lags=1, period=1, 
 
     '''
 
-    filename = f'pkl/datasets/{model_type}_{included_data}_gran{gran}_period{period}_lags{nb_lags}.pkl'
+    filename = f'../pkl/datasets/{model_type}_{included_data}_gran{gran}_period{period}_lags{nb_lags}.pkl'
     if not file_exists(filename):
         print('Lagged dataset not found.')
         print(

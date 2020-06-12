@@ -75,7 +75,7 @@ def create_sensing_table(sensor):
     """
     filename = f'pkl/sensing_data/{sensor}.pkl'
     if file_exists(filename):
-        print('sensing_data already generated')
+        print(f'{sensor} data already generated')
     else:
         path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
         df = pd.read_csv(path + '00' + '.csv', index_col=False)
@@ -88,11 +88,22 @@ def create_sensing_table(sensor):
                 df = df.append(aux)
             except:
                 pass
+        df['userId'] = df['userId'].astype('int8')
+
+        #downgrade datatypes
+
+        df_int = df.select_dtypes(include=['int'])
+        converted_int = df_int.apply(pd.to_numeric, downcast='signed')
+        df[converted_int.columns] = converted_int
+        df_float = df.select_dtypes(include=['float'])
+        converted_float = df_float.apply(pd.to_numeric, downcast='float')
+        df[converted_float.columns] = converted_float
+
         df.to_pickle(filename)
 
 
 def create_sensing_tables():
-    sensor_data_files = ['activity', 'audio', 'gps', 'dark',
+    sensor_data_files = ['activity', 'audio', 'bt','gps', 'dark',
                          'phonelock', 'wifi', 'phonecharge',
                          'calendar', 'wifi_location', 'conversation']
     for file in sensor_data_files:
@@ -366,10 +377,11 @@ def get_studentlife_dataset(freq='1h'):
         s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
 
         # a = wifidataIn.groupby(['userId', 'time'])['location']
-        # wifidataNear = wifidata.loc[wifidata['location'].str.startswith('near')]
+        # wifidataNear = wfidata.loc[wifidata['location'].str.startswith('near')]
 
         s.to_pickle(filename)
     else:
         print('Prepocessed StudentLife dataset already generated!')
 
     return pd.read_pickle(filename)
+
