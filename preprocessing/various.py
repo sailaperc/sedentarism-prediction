@@ -1,18 +1,28 @@
 import pandas as pd
 
 
+def get_activity_levels(df):
+    levels = df.loc[:, ['act_0','act_1','act_2']].copy()
+    levels['total'] = levels.apply(lambda row : row.act_0 + row.act_1 + row.act_2, axis=1)
+    levels['stationaryLevel'] = levels.apply(lambda row : row.act_0 / row.total, axis=1)
+    levels['walkingLevel'] = levels.apply(lambda row : row.act_1 / row.total, axis=1)
+    levels['runningLevel'] = levels.apply(lambda row : row.act_2 / row.total, axis=1)
+    return levels.loc[:, ['stationaryLevel','walkingLevel','runningLevel']]
+
+    
 def addSedentaryLevel(df, metValues=(1.3, 5, 8.3)):
     '''
     Calculates de metLevel feature from the metValues
 
     '''
 
-    dfcopy = df.copy()
-    metLevel = (dfcopy['stationaryLevel'] * metValues[0] +
-                dfcopy['walkingLevel'] * metValues[1] +
-                dfcopy['runningLevel'] * metValues[2])
-    dfcopy['slevel'] = metLevel
-    return dfcopy
+    levels = get_activity_levels(df)
+
+    metLevel = (levels['stationaryLevel'] * metValues[0] +
+                levels['walkingLevel'] * metValues[1] +
+                levels['runningLevel'] * metValues[2])
+    df['slevel'] = metLevel
+    return df
 
 
 def addSedentaryClasses(df, drop_slevel= True):
@@ -35,15 +45,10 @@ def makeDummies(df):
     Transforms categorical features into dummy features (one boolean feature for each categorical possible value)
 
     '''
-    dfcopy = df.copy()
-    categorical_cols = ['dayofweek', 'activitymajor']
-    for col in categorical_cols:
-        dfcopy[col] = dfcopy[col].astype('category')
-    for col in set(df.columns) - set(categorical_cols):
-        dfcopy[col] = dfcopy[col].astype('float')
-    dummies = pd.get_dummies(dfcopy.select_dtypes(include='category'))
-    dfcopy.drop(categorical_cols, inplace=True, axis=1)
-    return pd.concat([dfcopy, dummies], axis=1, sort=False)
+    categorical_cols = df.select_dtypes(include='object').columns
+    df = pd.concat([df, pd.get_dummies(df[categorical_cols])], axis=1)
+    df.drop(categorical_cols, inplace=True, axis=1)
+    return df
 
 
 def delete_user(df, user):

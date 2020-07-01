@@ -68,6 +68,14 @@ def get_total_harversine_distance_traveled(x):
     return d
 '''
 
+def downgrade_datatypes(df):
+    df_int = df.select_dtypes(include=['int'])
+    converted_int = df_int.apply(pd.to_numeric, downcast='signed')
+    df[converted_int.columns] = converted_int
+    df_float = df.select_dtypes(include=['float'])
+    converted_float = df_float.apply(pd.to_numeric, downcast='float')
+    df[converted_float.columns] = converted_float
+    return df
 
 def create_sensing_table(sensor):
     """
@@ -94,12 +102,7 @@ def create_sensing_table(sensor):
 
         #downgrade datatypes
 
-        df_int = df.select_dtypes(include=['int'])
-        converted_int = df_int.apply(pd.to_numeric, downcast='signed')
-        df[converted_int.columns] = converted_int
-        df_float = df.select_dtypes(include=['float'])
-        converted_float = df_float.apply(pd.to_numeric, downcast='float')
-        df[converted_float.columns] = converted_float
+        df = downgrade_datatypes(df)
 
         df.to_pickle(filename)
 
@@ -113,7 +116,7 @@ def create_sensing_tables():
 
 
 def get_sensor_data(sensor) -> pd.DataFrame:
-    return pd.read_pickle(f'pkl/sensing_data/{sensor}.pkl')
+    return downgrade_datatypes(pd.read_pickle(f'pkl/sensing_data/{sensor}.pkl'))
 
 
 def get_studentlife_dataset(freq='1h'):
@@ -136,7 +139,7 @@ def get_studentlife_dataset(freq='1h'):
         #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
         ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s']).drop_duplicates() 
 
-        aux_series = pd.Series(index=ind, dtype='Bool')
+        aux_series = pd.Series(index=ind, dtype='bool')
         aux_series[:] = True
         s[col] = aux_series
         s.loc[:,col].fillna(False, inplace=True)
@@ -152,8 +155,8 @@ def get_studentlife_dataset(freq='1h'):
             tuples +=  [ (t.userId, d) for d in r]
         #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
         ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s'])
-        aux_series = pd.Series(index=ind, dtype='int8')
-        convs_per_hour = aux_series.groupby(aux_series.index).size()
+        aux_series = pd.Series(index=ind)
+        convs_per_hour = aux_series.groupby(aux_series.index).size().astype('int')
         s[col] = convs_per_hour
         s.loc[:,col].fillna(0, inplace=True)
 
@@ -190,10 +193,13 @@ def get_studentlife_dataset(freq='1h'):
         #s.loc[:, 'walkingLevel'] = grouped['act_1'].mean()
         #s.loc[:, 'runningLevel'] = grouped['act_2'].mean()
 
-        _, s = s.align(count_per_activity, axis=None, join='outer')
+        #_, s = s.align(count_per_activity, axis=None, join='outer')
+
+        for col in count_per_activity.columns:
+            s[col] = count_per_activity[col].astype('int')
 
         # activitymajor
-        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common)
+        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common).astype('object')
         #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
 
         # 2013-03-27 04:00:00
@@ -207,8 +213,9 @@ def get_studentlife_dataset(freq='1h'):
         s['hourCosine'] = np.cos(2 * np.pi * hours / 23.0)
 
         # dayofweek
-        s['dayofweek'] = s.index.get_level_values('time').dayofweek
-
+        dayofweek = s.index.get_level_values('time').dayofweek
+        s['dayofweekSine'] = np.sin(2 * np.pi * dayofweek / 23.0)
+        s['dayofweekCosine'] = np.cos(2 * np.pi * dayofweek / 23.0)
 
 
         s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
@@ -224,6 +231,7 @@ def get_studentlife_dataset(freq='1h'):
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
         s.loc[:, 'audiomajor'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
+        s.audiomajor = s.audiomajor.astype('object')
         # 0	Silence
         # 1	Voice
         # 2	Noise
@@ -235,8 +243,8 @@ def get_studentlife_dataset(freq='1h'):
         count_per_audio = adata.groupby(['userId', 'time'])[['audio_0', 'audio_1', 'audio_2']].sum()
 
 
-        for col in count_per_audio:
-            s[col] = count_per_audio[col]
+        for col in count_per_audio.columns:
+            s[col] = count_per_audio[col].astype('int')
 
         # logs per activity
         #s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
@@ -385,16 +393,7 @@ def get_studentlife_dataset(freq='1h'):
         # s.loc[s['wifiMajor'].isna()] = 0
         wifidataIn.reset_index(inplace=True, drop=True)
 
-        def funct(x):
-            changes = 1
-            last = x.iloc[0]
-            for v in x:
-                if v != last:
-                    changes += 1
-                last = v
-            return changes
-        
-        wifiChanges = wifidataIn.groupby(['userId', 'time'])['location'].nunique()
+        wifiChanges = wifidataIn.groupby(['userId', 'time'])['location'].nunique().astype('int')
         s.loc[:, 'wifiChanges'] = wifiChanges
         s.wifiChanges.fillna(0, inplace=True)
         # a = wifidataIn.groupby(['userId', 'time'])['location']
@@ -404,4 +403,8 @@ def get_studentlife_dataset(freq='1h'):
     else:
         print('Prepocessed StudentLife dataset already generated!')
 
-    return pd.read_pickle(filename)
+    return downgrade_datatypes(pd.read_pickle(filename))
+
+
+df = get_studentlife_dataset()
+

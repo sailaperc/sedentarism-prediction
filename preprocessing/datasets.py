@@ -55,28 +55,30 @@ def concatenate_shift_data(df, dropnan=True, nb_lags=None, period=1):
     return agg
 
 
-def generate_dataset(gran='1h', with_dummies=True, file_name=''):
+def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, file_name=''):
     df = pd.read_pickle(f'pkl/sedentarismdata_gran{gran}.pkl')
-    df = delete_user(df, 52)
+    df.dropna(inplace=True)
+    if delete_inconcitencies: 
+        df = delete_user(df, 52)
     if with_dummies:
         df = makeDummies(df)
     df = addSedentaryLevel(df)
-    pd.to_pickle(df, file_name)
+    df.to_pickle(file_name)
     return df
 
 
-def get_dataset(gran='1h'):
+def get_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True):
     '''
         Creates a dataset with granularity gran. It uses the preprocesed dataset  with the same granularity and makes
         some preprocessing steps (delete the user 52, make dummy variables and calculate de sLevel feature.
 
     '''
 
-    file_name = f'../pkl/dataset_gran{gran}.pkl'
+    file_name = f'pkl/datasets/dataset_gran{gran}.pkl'
     if not file_exists(file_name):
         print('Dataset does not exist.')
         print(f'Generating dataset with gran: {gran}')
-        generate_dataset(gran, file_name)
+        generate_dataset(gran, delete_inconcitencies, with_dummies, file_name)
 
     return pd.read_pickle(file_name)
 
@@ -115,7 +117,7 @@ def get_lagged_dataset(model_type, included_data, user=-1, nb_lags=1, period=1, 
 
     '''
 
-    filename = f'../pkl/datasets/{model_type}_{included_data}_gran{gran}_period{period}_lags{nb_lags}.pkl'
+    filename = f'pkl/lagged_datasets/{model_type}_{included_data}_gran{gran}_period{period}_lags{nb_lags}.pkl'
     if not file_exists(filename):
         print('Lagged dataset not found.')
         print(
@@ -127,3 +129,6 @@ def get_lagged_dataset(model_type, included_data, user=-1, nb_lags=1, period=1, 
         return get_user_data(data, user)
     else:
         return data
+
+
+
