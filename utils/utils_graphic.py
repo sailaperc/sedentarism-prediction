@@ -1,8 +1,9 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from utils.utils import get_user_data
-from preprocessing.model_ready import get_lagged_dataset
+from utils import get_user_data
+from preprocessing.datasets import get_dataset
+from preprocessing.various import get_activity_levels
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
@@ -13,9 +14,10 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     Plot the cumulative activity type of a specific user between mindate and maxdate
     The default mindate and mindate is too broad and does not work
     '''
-    df = get_lagged_dataset()
+    df = get_dataset(delete_inconcitencies=False)
 
-    data = get_user_data(df, user)
+    data = get_activity_levels(get_user_data(df, user))
+    
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
     print(data.shape)
@@ -49,13 +51,17 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
     fig.autofmt_xdate()
     ax.grid(True)
-    ax.set_ylabel('Cumulative activity type (%)')
-    ax.set_xlabel('Time')
+    ax.set_ylabel('Acumulación de actividad por tipo (%)')
+    #ax.set_ylabel('Cumulative activity type (%)')
+    ax.set_xlabel('Tiempo')
+    #ax.set_xlabel('Time')
     ax.set_title(title)
     ax.legend(loc='upper right')
     plt.show()
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
 
+
+show_user_activity(53, mindate='2013-04-27 04:00:00', maxdate='2013-06-01 3:00:00')
 
 def get_hour_labels():
     hours = []
