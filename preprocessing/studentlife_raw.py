@@ -1,3 +1,11 @@
+from sklearn.preprocessing import LabelEncoder
+import pandas as pd
+import numpy as np
+from collections import Counter
+from utils.utils import file_exists
+from datetime import datetime
+
+
 '''
 
 #Audio Inference
@@ -47,12 +55,6 @@ activitymajor
 
 hay 14420.575126 en promedio de muestros de actividad por hora
 '''
-from sklearn.preprocessing import LabelEncoder
-import pandas as pd
-import numpy as np
-from collections import Counter
-from utils.utils import file_exists
-from datetime import datetime
 
 '''
 def get_total_harversine_distance_traveled(x):
@@ -115,9 +117,45 @@ def get_sensor_data(sensor) -> pd.DataFrame:
 
 
 def get_studentlife_dataset(freq='1h'):
+
+    def floor_time(df, col='time'):
+        df[col] = pd.to_datetime(df[col], unit='s').dt.floor(freq)
+        return df
+
+
     def Most_Common(lst):
         data = Counter(lst)
         return data.most_common(1)[0][0]
+
+
+    def fill_by_interval(df, col):
+        tuples = list()
+        for index, t in df.iterrows():
+            tuples +=  [ (t.userId, d) for d in pd.date_range(start=t['start'], end=t['end'], freq=freq)]
+
+        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
+        ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s']).drop_duplicates() 
+
+        aux_series = pd.Series(index=ind, dtype='Bool')
+        aux_series[:] = True
+        s[col] = aux_series
+        s.loc[:,col].fillna(False, inplace=True)
+
+
+    def count_by_interval(df, col):
+        tuples = list()
+        for index, t in df.iterrows():
+            if t['start'] == t['end']:
+                r = pd.date_range(start=t['start'], end=t['end'], freq=freq)
+            else:
+                r = [t['start']]
+            tuples +=  [ (t.userId, d) for d in r]
+        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
+        ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s'])
+        aux_series = pd.Series(index=ind, dtype='int8')
+        convs_per_hour = aux_series.groupby(aux_series.index).size()
+        s[col] = convs_per_hour
+        s.loc[:,col].fillna(0, inplace=True)
 
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
@@ -126,10 +164,7 @@ def get_studentlife_dataset(freq='1h'):
         sdata = get_sensor_data('activity')
         sdata.columns = ['time', 'activityId', 'userId']
         sdata = sdata.loc[sdata['activityId'] != 3]
-        min_date = datetime.fromtimestamp(min(sdata.time))
-        max_date = datetime.fromtimestamp(max(sdata.time))
-
-        sdata['time'] = pd.to_datetime(sdata['time'], unit='s').dt.floor(freq)
+        sdata = floor_time(sdata)
 
         '''
         Set dataset index from the cartesian product between
@@ -137,25 +172,34 @@ def get_studentlife_dataset(freq='1h'):
         the minimun and maximun date found
 
         '''
-        s = pd.DataFrame(index=pd.MultiIndex.from_product(iterables=[sdata['userId'].drop_duplicates(),
-                                                                     pd.date_range(min_date,
-                                                                                   max_date,
-                                                                                   freq=freq)],
-                                                          names=['userId', 'time']))
+        uindex = sdata['userId'].drop_duplicates()
+
+        min_date = sdata.time.min()
+        max_date = sdata.time.max()
+        dindex = pd.date_range(min_date, max_date, freq=freq)
+        index = pd.MultiIndex.from_product(iterables=[uindex, dindex],
+                                           names=['userId', 'time'])
+        s = pd.DataFrame(index = index)
 
         sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
 
         # logs per activity
-        grouped = sdata.groupby(['userId', 'time'])
-        s.loc[:, 'stationaryLevel'] = grouped['act_0'].mean()
-        s.loc[:, 'walkingLevel'] = grouped['act_1'].mean()
-        s.loc[:, 'runningLevel'] = grouped['act_2'].mean()
-        s.dropna(how='all', inplace=True)
+        count_per_activity = sdata.groupby(['userId', 'time'])[['act_0', 'act_1', 'act_2']].sum()
+
+        #s.loc[:, 'stationaryLevel'] = grouped['act_0'].mean()
+        #s.loc[:, 'walkingLevel'] = grouped['act_1'].mean()
+        #s.loc[:, 'runningLevel'] = grouped['act_2'].mean()
+
+        _, s = s.align(count_per_activity, axis=None, join='outer')
+
+        # activitymajor
+        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common)
+        #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
 
         # 2013-03-27 04:00:00
         # 2013-06-01 3:00:00
 
-        # sedentary mean
+        #time related features
         # hourofday
 
         hours = s.index.get_level_values('time').hour
@@ -165,8 +209,7 @@ def get_studentlife_dataset(freq='1h'):
         # dayofweek
         s['dayofweek'] = s.index.get_level_values('time').dayofweek
 
-        # activitymajor
-        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common)
+
 
         s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
         s['remainingminutes'] = 24 * 60 - s['pastminutes']
@@ -174,33 +217,38 @@ def get_studentlife_dataset(freq='1h'):
         # prepare audio data
         adata = get_sensor_data('audio')
         adata.columns = ['time', 'audioId', 'userId']
-        adata['time'] = pd.to_datetime(adata['time'], unit='s')
-        adata['time'] = adata['time'].dt.floor(freq)
+        adata = floor_time(adata)
 
         # audiomajor
+        s['audiomajor'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common)
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
-        # s[s['audiomajor'].isna()].groupby('userId')['audiomajor'].count()
-        # s['audiomajor'] = np.NaN
-        # s['audiomajor'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common).astype('int')
-
+        #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
+        s.loc[:, 'audiomajor'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
         # 0	Silence
         # 1	Voice
         # 2	Noise
         # 3	Unknow
 
-        adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='act')], axis=1, sort=False)
+        adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='audio')], axis=1, sort=False)
+
+
+        count_per_audio = adata.groupby(['userId', 'time'])[['audio_0', 'audio_1', 'audio_2']].sum()
+
+
+        for col in count_per_audio:
+            s[col] = count_per_audio[col]
 
         # logs per activity
-        s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
-        s.loc[:, 'voiceLevel'] = adata.groupby(['userId', 'time'])['act_1'].mean()
-        s.loc[:, 'noiseLevel'] = adata.groupby(['userId', 'time'])['act_2'].mean()
-        s.fillna(0, inplace=True)
+        #s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
+        #s.loc[:, 'voiceLevel'] = adata.groupby(['userId', 'time'])['act_1'].mean()
+        #s.loc[:, 'noiseLevel'] = adata.groupby(['userId', 'time'])['act_2'].mean()
+        #s.fillna(0, inplace=True)
 
         # latitude and longitude mean and std
         gpsdata = get_sensor_data('gps')
-        gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
-        gpsdata['time'] = gpsdata['time'].dt.floor(freq)
+        gpsdata = floor_time(gpsdata)
 
+        
         # gpsdata.loc[gpsdata['travelstate'].isna() & gpsdata['speed']>0, 'travelstate'] = 'moving'
         # gpsdata.loc[gpsdata['travelstate'].isna(), 'travelstate'] = 'stationary'
         # kmeans = cluster.KMeans(15)
@@ -211,74 +259,47 @@ def get_studentlife_dataset(freq='1h'):
         # s['distanceTraveled'] = gpsdata.groupby( by= ['userId', pd.Grouper(key='time', freq='H')])['latitude','longitude'].\
         #   apply(get_total_harversine_distance_traveled)
         # s['distanceTraveled'].fillna(0, inplace=True)
+        gps_grouped = gpsdata.groupby(['userId', 'time'])
+        s['locationStd'] = gps_grouped['longitude'].std() + gps_grouped['latitude'].std()
+        s['locationMean'] = gps_grouped['longitude'].mean() + gps_grouped['latitude'].mean()
+        s.loc[:, 'locationStd'].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
+        s.loc[:, 'locationMean'].fillna(method='ffill', axis=0, inplace=True) # if it is NaN I suppose the user stayed in the same position
 
-        s['locationVariance'] = gpsdata.groupby(['userId', 'time'])['longitude'].std() \
-                                + gpsdata.groupby(['userId', 'time'])['latitude'].std()
-        s['locationVariance'].fillna(0, inplace=True)
-        # calculo la distancia total recorrida por el usuario en una hora
 
         # prepare charge data
         chargedata = get_sensor_data('phonecharge')
-        chargedata['start'] = pd.to_datetime(chargedata['start'], unit='s').dt.floor(freq)
-        chargedata['end'] = pd.to_datetime(chargedata['end'], unit='s').dt.floor(freq)
+        chargedata = floor_time(chargedata, 'start')
+        chargedata = floor_time(chargedata, 'end')
 
-        # isCharging
-        s['isCharging'] = False
-        for index, t in chargedata.iterrows():
-            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-                try:
-                    s.loc[[(t['userId'], date)], 'isCharging'] = True
-                except KeyError:
-                    pass
+
+
+        fill_by_interval(chargedata, 'isCharging')
+        #s.drop('numberOfConversations', axis=1, inplace=True)
 
         # prepare lock data
         lockeddata = get_sensor_data('phonelock')
-        lockeddata['start'] = pd.to_datetime(lockeddata['start'], unit='s').dt.floor(freq)
-        lockeddata['end'] = pd.to_datetime(lockeddata['end'], unit='s').dt.floor(freq)
+        lockeddata = floor_time(lockeddata, 'start')
+        lockeddata = floor_time(lockeddata, 'end')
 
         # isLocked
-        s['isLocked'] = False
-        for index, t in lockeddata.iterrows():
-            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-                try:
-                    s.loc[[(t['userId'], date)], 'isLocked'] = True
-                except KeyError:
-                    pass
+        fill_by_interval(lockeddata, 'isLocked')
 
         # prepare dark data
-        darkdata = get_sensor_data('sensing_data/dark.csv')
-        darkdata['start'] = pd.to_datetime(darkdata['start'], unit='s').dt.floor(freq)
-        darkdata['end'] = pd.to_datetime(darkdata['end'], unit='s').dt.floor(freq)
-
+        darkdata = get_sensor_data('dark')
+        darkdata = floor_time(darkdata, 'start')
+        darkdata = floor_time(darkdata, 'end')
         # isInDark
-        s['isInDark'] = False
-        for index, t in darkdata.iterrows():
-            for date in pd.date_range(start=t['start'], end=t['end'], freq=freq):
-                try:
-                    s.loc[[(t['userId'], date)], 'isInDark'] = True
-                except KeyError:
-                    pass
+        fill_by_interval(darkdata, 'isInDark')
+
+
+
 
         # prepare conversation data
         conversationData = get_sensor_data('conversation')
-        conversationData['start_timestamp'] = pd.to_datetime(conversationData['start_timestamp'], unit='s').dt.floor(
-            freq)
-        conversationData[' end_timestamp'] = pd.to_datetime(conversationData[' end_timestamp'], unit='s').dt.floor(freq)
-
-        s['numberOfConversations'] = 0
-        for index, t in conversationData.iterrows():
-            if t['start_timestamp'] == t[' end_timestamp']:
-                try:
-                    s.loc[[(t['userId'], t['start_timestamp'])], 'numberOfConversations'] += 1
-                except KeyError:
-                    pass
-            else:
-                dates = pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq)
-                for date in pd.date_range(start=t['start_timestamp'], end=t[' end_timestamp'], freq=freq):
-                    try:
-                        s.loc[[(t['userId'], date)], 'cantConversation'] += 1
-                    except KeyError:
-                        pass
+        conversationData.columns = ['start', 'end', 'userId']
+        conversationData = floor_time(conversationData, 'start')
+        conversationData = floor_time(conversationData, 'end')
+        count_by_interval(conversationData, 'nbConv')
 
         '''
         #cargo los datos de deadlines
@@ -353,7 +374,7 @@ def get_studentlife_dataset(freq='1h'):
         # de sedentarismo
 
         wifidata = get_sensor_data('wifi_location')
-        wifidata['time'] = pd.to_datetime(wifidata['time'], unit='s').dt.floor(freq)
+        wifidata = floor_time(wifidata)
         wifidataIn = wifidata.loc[wifidata['location'].str.startswith('in')]
         label_encoder = LabelEncoder()
         integer_encoded = label_encoder.fit_transform(wifidataIn['location'].values)
@@ -372,10 +393,10 @@ def get_studentlife_dataset(freq='1h'):
                     changes += 1
                 last = v
             return changes
-
-        s['wifiChanges'] = wifidataIn.groupby(['userId', 'time'])['location'].apply(funct)
-        s.loc[s['wifiChanges'].isna(), 'wifiChanges'] = 0
-
+        
+        wifiChanges = wifidataIn.groupby(['userId', 'time'])['location'].nunique()
+        s.loc[:, 'wifiChanges'] = wifiChanges
+        s.wifiChanges.fillna(0, inplace=True)
         # a = wifidataIn.groupby(['userId', 'time'])['location']
         # wifidataNear = wfidata.loc[wifidata['location'].str.startswith('near')]
 
@@ -384,4 +405,3 @@ def get_studentlife_dataset(freq='1h'):
         print('Prepocessed StudentLife dataset already generated!')
 
     return pd.read_pickle(filename)
-

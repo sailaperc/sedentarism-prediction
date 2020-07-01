@@ -56,7 +56,7 @@ def concatenate_shift_data(df, dropnan=True, nb_lags=None, period=1):
 
 
 def generate_dataset(gran='1h', with_dummies=True, file_name=''):
-    df = pd.read_pickle('pkl/sedentarismdata_gran{0}.pkl'.format(gran))
+    df = pd.read_pickle(f'pkl/sedentarismdata_gran{gran}.pkl')
     df = delete_user(df, 52)
     if with_dummies:
         df = makeDummies(df)
@@ -76,7 +76,7 @@ def get_dataset(gran='1h'):
     if not file_exists(file_name):
         print('Dataset does not exist.')
         print(f'Generating dataset with gran: {gran}')
-        generate_dataset(gran)
+        generate_dataset(gran, file_name)
 
     return pd.read_pickle(file_name)
 
