@@ -3,10 +3,11 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from preprocessing.studentlife_raw import get_sensor_data
+from preprocessing.studentlife_raw import get_sensor_data, get_studentlife_dataset
+from preprocessing.datasets import get_dataset
 sns.set_style("whitegrid")
 
-def plot_unknown_per_user():
+def plot_activity_logs_per_user(only_unknowns=True):
     df = get_sensor_data('activity')
     df.columns = ['time', 'inference', 'userId']
     df['time'] = pd.to_datetime(df['time'], unit='s').dt.floor('1h')
@@ -14,26 +15,33 @@ def plot_unknown_per_user():
     df_all = df.groupby(['userId','time'], as_index=False).size().to_frame('count')
     df_all.reset_index(inplace=True)
 
-    df = df[df['inference'] == 3]
-    df_unknowns = df[df['inference'] == 3].groupby(['userId','time'], as_index=False).size().to_frame('count')
-    df_unknowns.reset_index(inplace=True)
+    if only_unknowns:
+        df = df[df['inference'] == 3]
+        title = 'Registros de actividad desconocidos por usuario'
+    else:
+        df = df[df['inference'] != 3]
+        title = 'Registros de actividad no desconocidos por usuario'
+
+    df = df.groupby(['userId','time']).size().to_frame('count')
+    df.reset_index(inplace=True)
 
     plt.close()
     fig, (ax,ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
-    sns.barplot(x="userId", y="count", data=df_unknowns, ax=ax,
+    sns.barplot(x="userId", y="count", data=df, ax=ax,
+                estimator=np.mean, ci=None,
                 palette=sns.color_palette("Paired", 10))
     plt.xticks(rotation='vertical')
     ax.set_xlabel("")
-    ax.set_ylabel("Registros desconocidos")
-    ax.set_title('Registros desconocidos por usuario')
+    ax.set_ylabel("Media")
+    ax.set_title(title)
 
-    sns.barplot(x="userId", y="count", data=df_all, ax=ax2,
+    sns.barplot(x="userId", y="count", data=df, ax=ax2,
+                estimator=np.std, ci=None,
                 palette=sns.color_palette("Paired", 10))
-    ax2.set_ylabel("Registros totales")
+    ax2.set_ylabel("Desviación estándar")
     ax2.set_xlabel("User ID")
     plt.show()
 
-plot_unknown_per_user()
 
 def plot_activity_unknown_cumsum():
     df = get_sensor_data('activity')
@@ -74,7 +82,6 @@ def plot_activity_unknown_cumsum():
 
     fig.show()
 
-plot_activity_unknown_cumsum()
 
 def print_basic_info(sensor):
     '''
@@ -96,6 +103,7 @@ def print_basic_info(sensor):
     print(f'max date: {max_date}')
     '''
     del df
+
 
 def print_tsd_info(sensor, freq):
     '''
@@ -134,6 +142,7 @@ def print_tsd_info(sensor, freq):
     del df
     del grouped_per_hour_and_user
 
+
 def print_tsi_info(sensor, freq):
     '''
     print info related to the frequency of the sensor data
@@ -159,7 +168,6 @@ def print_tsi_info(sensor, freq):
     print(f'Maximo y minimo del tamaño de los intervalos: '
           f'{round(df["diff"].min() / 3600, 3)} / {round(df["diff"].max() / 3600, 3)}')
 
-print_tsi_info('dark','1h')
 
 def print_all_info():
 
@@ -178,30 +186,47 @@ def print_all_info():
         for f in ['1h','30min']:
             print_tsi_info(t, f)
 
-print_all_info()
 
-'''
+def plot_portion_of_activity(only_unknowns=True):
+    df = get_sensor_data('activity')
+    df.columns = ['time', 'inference', 'userId']
+    df['time'] = pd.to_datetime(df['time'], unit='s').dt.floor('1h')
 
-s.loc[:, 'activityId'] = grouped_per_hour_and_user
+    df_all = df.groupby(['userId','time'], as_index=False).size().to_frame('count')
+    df_all.reset_index(inplace=True)
+
+    if only_unknowns:
+        df = df[df['inference'] == 3]
+        title = 'Registros de actividad desconocidos por usuario'
+    else:
+        df = df[df['inference'] != 3]
+        title = 'Registros de actividad no desconocidos por usuario'
+
+    df = df.groupby(['userId','time']).size().to_frame('count')
+    df.reset_index(inplace=True)
+
+    plt.close()
+    fig, (ax,ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
+    sns.barplot(x="userId", y="count", data=df, ax=ax,
+                estimator=np.mean, ci=None,
+                palette=sns.color_palette("Paired", 10))
+    plt.xticks(rotation='vertical')
+    ax.set_xlabel("")
+    ax.set_ylabel("Media")
+    ax.set_title(title)
+
+    sns.barplot(x="userId", y="count", data=df, ax=ax2,
+                estimator=np.std, ci=None,
+                palette=sns.color_palette("Paired", 10))
+    ax2.set_ylabel("Desviación estándar")
+    ax2.set_xlabel("User ID")
+    plt.show()
 
 
-# Prints a histogram over the number of logs available per hour and user
-vals = grouped_per_hour_and_user.to_numpy()
-sns.distplot(vals, kde=False, bins=1000)
-#plt.xlim(0,100)
-plt.ylim(0,50)
-plt.ylabel('Nro. de registros')
-plt.xlabel('Data')
-plt.show()
+def plot_met_level_stads():
+    df = get_studentlife_dataset()
 
-
-plt.close()
-vals = s['activityId'].to_numpy()
-plt.plot(vals)
-plt.show()
-'''
+df.isnull().sum()
 
 
 
-df = get_sensor_data('activity')
-df.userId.mean()
