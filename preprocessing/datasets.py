@@ -55,7 +55,7 @@ def concatenate_shift_data(df, dropnan=True, nb_lags=None, period=1):
     return agg
 
 
-def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, file_name=''):
+def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, file_name='', from_disc=True):
     df = pd.read_pickle(f'pkl/sedentarismdata_gran{gran}.pkl')
     df.dropna(inplace=True)
     if delete_inconcitencies: 
@@ -63,23 +63,29 @@ def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, f
     if with_dummies:
         df = makeDummies(df)
     df = addSedentaryLevel(df)
-    df.to_pickle(file_name)
+    if from_disc:
+        df.to_pickle(file_name)
     return df
 
-
-def get_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True):
+def get_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, from_disc=True):
     '''
-        Creates a dataset with granularity gran. It uses the preprocesed dataset  with the same granularity and makes
-        some preprocessing steps (delete the user 52, make dummy variables and calculate de sLevel feature.
+        Creates a dataset with granularity gran. It uses the preprocesed dataset with the same granularity and makes
+        some preprocessing steps (delete the user 52, make dummy variables, drops nans rows and calculate de sLevel feature).
 
+
+        from_disc: if True will return the dataset located in storage. If there is no one,
+        it will create and save it. If False, it will create and return the dataset with 
+        the specified options, without saving it.
     '''
 
     file_name = f'pkl/datasets/dataset_gran{gran}.pkl'
-    if not file_exists(file_name):
+    if not from_disc:
+        print('Creating dataset on the fly.')
+        return generate_dataset(gran, delete_inconcitencies, with_dummies, file_name, from_disc)
+    elif not file_exists(file_name) and from_disc:
         print('Dataset does not exist.')
         print(f'Generating dataset with gran: {gran}')
-        generate_dataset(gran, delete_inconcitencies, with_dummies, file_name)
-
+        generate_dataset(gran, delete_inconcitencies, with_dummies, file_name, from_disc)
     return pd.read_pickle(file_name)
 
 

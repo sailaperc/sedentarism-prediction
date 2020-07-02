@@ -1,13 +1,14 @@
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from utils import get_user_data
+from utils.utils import get_user_data
 from preprocessing.datasets import get_dataset
 from preprocessing.various import get_activity_levels
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
-
+import seaborn as sns
+sns.set_style("whitegrid")
 
 def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
     '''
@@ -61,7 +62,26 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
 
 
-show_user_activity(53, mindate='2013-04-27 04:00:00', maxdate='2013-06-01 3:00:00')
+def plot_met_statistics():
+    df = get_dataset(delete_inconcitencies=False, from_disc=False)
+    df = df.reset_index()
+    plt.close()
+    fig, (ax,ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
+    sns.barplot(x="userId", y="slevel", data=df, ax=ax,
+                estimator=np.mean, ci=None,
+                palette=sns.color_palette("Paired", 10))
+    plt.xticks(rotation='vertical')
+    ax.set_xlabel("")
+    ax.set_ylabel("Media")
+    ax.set_title('Nivel del MET')
+
+    sns.barplot(x="userId", y="slevel", data=df, ax=ax2,
+                estimator=np.std, ci=None,
+                palette=sns.color_palette("Paired", 10))
+    ax2.set_ylabel("Desviación estándar")
+    ax2.set_xlabel("User ID")
+    plt.show()
+
 
 def get_hour_labels():
     hours = []
@@ -322,5 +342,4 @@ def plot_by_month(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
-
 
