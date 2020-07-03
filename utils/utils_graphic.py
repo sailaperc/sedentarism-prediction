@@ -1,3 +1,4 @@
+#%%
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -81,6 +82,49 @@ def plot_met_statistics():
     ax2.set_ylabel("Desviación estándar")
     ax2.set_xlabel("User ID")
     plt.show()
+
+
+def plot_buckets_per_user():
+    df = get_dataset(delete_inconcitencies=False, from_disc=False)
+    df_with_nulls = get_dataset(dropna=False, delete_inconcitencies=False, from_disc=False)
+    plt.figure(figsize=(10, 6), dpi=80, facecolor='w', edgecolor='k')
+    plt.grid(axis='x')
+    d = df.groupby(level=0).size().to_frame('disp')
+    d2 = df_with_nulls.isnull().any(axis=1).groupby(level=0).sum().to_frame('drop')
+    a = pd.concat([d,d2], axis=1).sort_values(by='disp')
+
+    disp = a['disp'].values
+    drop = a['drop'].values
+
+    sticks = a.index.values 
+    ind = np.arange(len(sticks))
+
+
+    p1 = plt.bar(ind, disp,)
+    p2 = plt.bar(ind, drop, bottom=disp)
+
+    plt.title('Buckets disponibles por usuario')
+    plt.xticks(ind, sticks, rotation='vertical')
+    plt.xlabel('Id del usuario')
+    plt.ylabel('Cantidad de buckets')
+    plt.legend((p1[0], p2[0]), ('Disponibles', 'Descartados'))
+
+
+def plot_distribution(df=None, user=-1, log_transform=False):
+    if df is None:
+        df = get_dataset()
+    if user >= 0:
+        df = get_user_data(df, user)
+    data = df.slevel
+    if log_transform:
+        data = np.log1p(data)
+    sns.distplot(data, hist=True, kde=False)
+    title = 'Histograma sobre el nivel de MET'
+    if user>0:
+        title += f' del usuario {user}'
+    plt.title(title)
+    plt.xlabel('Nivel de MET')
+    plt.ylabel('Cant. ocurrencias')
 
 
 def get_hour_labels():
@@ -303,6 +347,7 @@ def plot_by_week(user):
     ax.legend(loc='upper right')
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
+
 
 def plot_by_month(user):
     '''

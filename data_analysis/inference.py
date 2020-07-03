@@ -223,10 +223,6 @@ def plot_portion_of_activity(only_unknowns=True):
     plt.show()
 
 
-def plot_met_level_stads():
-    df = get_studentlife_dataset()
-
-df.isnull().sum()
 
 
 

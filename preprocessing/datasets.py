@@ -55,9 +55,10 @@ def concatenate_shift_data(df, dropnan=True, nb_lags=None, period=1):
     return agg
 
 
-def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, file_name='', from_disc=True):
+def generate_dataset(gran, file_name, dropna, delete_inconcitencies, with_dummies, from_disc):
     df = pd.read_pickle(f'pkl/sedentarismdata_gran{gran}.pkl')
-    df.dropna(inplace=True)
+    if dropna: 
+        df.dropna(inplace=True)
     if delete_inconcitencies: 
         df = delete_user(df, 52)
     if with_dummies:
@@ -67,7 +68,8 @@ def generate_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, f
         df.to_pickle(file_name)
     return df
 
-def get_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, from_disc=True):
+
+def get_dataset(gran='1h', dropna=True, delete_inconcitencies=True, with_dummies=True, from_disc=True):
     '''
         Creates a dataset with granularity gran. It uses the preprocesed dataset with the same granularity and makes
         some preprocessing steps (delete the user 52, make dummy variables, drops nans rows and calculate de sLevel feature).
@@ -81,11 +83,11 @@ def get_dataset(gran='1h', delete_inconcitencies=True, with_dummies=True, from_d
     file_name = f'pkl/datasets/dataset_gran{gran}.pkl'
     if not from_disc:
         print('Creating dataset on the fly.')
-        return generate_dataset(gran, delete_inconcitencies, with_dummies, file_name, from_disc)
+        return generate_dataset(gran, file_name, dropna, delete_inconcitencies, with_dummies, from_disc)
     elif not file_exists(file_name) and from_disc:
         print('Dataset does not exist.')
         print(f'Generating dataset with gran: {gran}')
-        generate_dataset(gran, delete_inconcitencies, with_dummies, file_name, from_disc)
+        generate_dataset(gran, file_name, dropna, delete_inconcitencies, with_dummies, from_disc)
     return pd.read_pickle(file_name)
 
 
