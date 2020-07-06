@@ -4,53 +4,66 @@ import matplotlib.dates as mdates
 import numpy as np
 from utils.utils import get_user_data
 from preprocessing.datasets import get_dataset
-from preprocessing.various import get_activity_levels
+from preprocessing.various import get_activity_levels, addSedentaryLevel
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
 import seaborn as sns
 sns.set_style("whitegrid")
 
-def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00', title=''):
+def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
     '''
     Plot the cumulative activity type of a specific user between mindate and maxdate
     The default mindate and mindate is too broad and does not work
     '''
-    df = get_dataset(delete_inconcitencies=False)
+
+    # to plot user 52's inconsistencies execute:
+    # show_user_activity(52, '2013-05-22 00:00:00', '2013-05-28 23:59:59')
+
+    title = 'Actividad por tipo a lo largo del tiempo'
+    if df is None:
+        df = get_dataset(delete_inconcitencies=False, from_disc=False)
 
     data = get_activity_levels(get_user_data(df, user))
     
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
     print(data.shape)
-    xlabels = mdates.date2num(data.index.get_level_values(1))
-    diff = len(pd.date_range(mindate, maxdate, freq='h', closed='left')) - data.shape[0]
-    if diff > 0:
-        print('Faltan {0} buckets!'.format(diff))
+    true_date_range = data.index.get_level_values(1)
+    date_range = pd.date_range(mindate, maxdate, freq='h', closed='left')
+    none_dates = date_range.difference(true_date_range)
+    print('Faltan {0} buckets!'.format(len(none_dates)))
+    
+    xlabels = mdates.date2num(true_date_range)
+
+
     r = data['walkingLevel'].values + data['runningLevel'].values
     w = data['walkingLevel'].values
 
     plt.close()
-    fig = plt.figure()
+    fig = plt.figure(figsize=(15,3))
     ax = fig.add_subplot(111)
-    fig.set_figheight(3)
-    fig.set_figwidth(15)
+
+    for date in none_dates:
+        plt.axvline(mdates.date2num(date))
 
     # ax.plot_date(xlabels, w, c='yellow', alpha=.4, fmt='-')
     # ax.plot_date(xlabels, r, c='red', alpha=.7,fmt='-')
-    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Walking')
-    ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Running')
-    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Stationary')
-
-    # ax.format_xdata = mdates.AutoDateFormatter()
+    #ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Walking')
+    #ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Running')
+    #ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Stationary')
+    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
+    ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
+    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+    #ax.format_xdata = mdates.AutoDateFormatter()
     ax.set_ylim(0, 1)
     ax.set_xlim(xlabels[0], xlabels[-1])
-    ax.autoscale_view()
     ax.xaxis.set_major_locator(mdates.DayLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
     ax.xaxis.set_minor_locator(mdates.HourLocator())
-
     ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+    
+    ax.autoscale_view()
     fig.autofmt_xdate()
     ax.grid(True)
     ax.set_ylabel('Acumulación de actividad por tipo (%)')
@@ -63,21 +76,79 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
 
 
+def show_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
+
+    title = 'Actividad por tipo a lo largo del tiempo'
+    if df is None:
+        df = get_dataset(delete_inconcitencies=False, from_disc=False)
+
+    data = get_activity_levels(get_user_data(df, user))
+    
+    data = data.loc[(data.index.get_level_values(1) >= mindate) &
+                    (data.index.get_level_values(1) < maxdate)]
+    print(data.shape)
+    true_date_range = data.index.get_level_values(1)
+    date_range = pd.date_range(mindate, maxdate, freq='h', closed='left')
+    none_dates = date_range.difference(true_date_range)
+    print('Faltan {0} buckets!'.format(len(none_dates)))
+    
+    xlabels = mdates.date2num(true_date_range)
+
+
+    r = data['walkingLevel'].values + data['runningLevel'].values
+    w = data['walkingLevel'].values
+
+    plt.close()
+    fig, (ax2, ax) = plt.subplots(2, 1, figsize=(15,6), sharex='all')
+
+    for date in none_dates:
+        ax.axvline(mdates.date2num(date))
+        ax2.axvline(mdates.date2num(date))
+
+
+  
+    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
+    ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
+    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+    ax.set_ylim(0, 1)
+    ax.set_xlim(xlabels[0], xlabels[-1])
+    ax.xaxis.set_major_locator(mdates.DayLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
+    ax.xaxis.set_minor_locator(mdates.HourLocator())
+    ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
+    ax.autoscale_view()
+    fig.autofmt_xdate()
+    ax.grid(True)
+    ax.set_ylabel('Acumulación de actividad por tipo (%)')
+    ax.set_xlabel('Tiempo')
+    ax.legend(loc='upper right')
+
+    data = addSedentaryLevel(get_user_data(df, user)).slevel
+
+    data = data.loc[(data.index.get_level_values(1) >= mindate) &
+                    (data.index.get_level_values(1) < maxdate)]
+    ax2.plot(xlabels, data.values)
+    ax.set_ylabel('Acumulación de actividad por tipo (%)')
+    ax.set_xlabel('Tiempo')
+
+    plt.show()
+
+
 def plot_met_statistics():
+    
     df = get_dataset(delete_inconcitencies=False, from_disc=False)
-    df = df.reset_index()
+    df = df.groupby(level=0)['slevel'].agg(['mean','std']).sort_values('mean').reset_index()
+
     plt.close()
     fig, (ax,ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
-    sns.barplot(x="userId", y="slevel", data=df, ax=ax,
-                estimator=np.mean, ci=None,
+    sns.barplot(x="userId", y="mean", data=df, ax=ax, order=list(df.userId),
                 palette=sns.color_palette("Paired", 10))
     plt.xticks(rotation='vertical')
     ax.set_xlabel("")
     ax.set_ylabel("Media")
     ax.set_title('Nivel del MET')
 
-    sns.barplot(x="userId", y="slevel", data=df, ax=ax2,
-                estimator=np.std, ci=None,
+    sns.barplot(x="userId", y="std", data=df, ax=ax2, order=list(df.userId),
                 palette=sns.color_palette("Paired", 10))
     ax2.set_ylabel("Desviación estándar")
     ax2.set_xlabel("User ID")
@@ -110,7 +181,7 @@ def plot_buckets_per_user():
     plt.legend((p1[0], p2[0]), ('Disponibles', 'Descartados'))
 
 
-def plot_distribution(df=None, user=-1, log_transform=False):
+def plot_met_distribution(df=None, user=-1, log_transform=False):
     if df is None:
         df = get_dataset()
     if user >= 0:
