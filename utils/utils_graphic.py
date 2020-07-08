@@ -9,14 +9,21 @@ import pandas as pd
 import seaborn as sns
 from matplotlib import colors
 import seaborn as sns
+import locale
+locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 sns.set_style("whitegrid")
+# to see what rcParams has changed with importing sns
+# [(k,p[k], p_changed[k]) for k in p if p[k]!=p_changed[k]]
 
 def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
     '''
     Plot the cumulative activity type of a specific user between mindate and maxdate
     The default mindate and mindate is too broad and does not work
     '''
-
+    plt.rcParams['xtick.color'] = 'black'
+    plt.rcParams['ytick.color'] = 'black'
+    plt.rcParams['xtick.bottom'] = True
+    plt.rcParams['ytick.left'] = True
     # to plot user 52's inconsistencies execute:
     # show_user_activity(52, '2013-05-22 00:00:00', '2013-05-28 23:59:59')
 
@@ -58,11 +65,11 @@ def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     #ax.format_xdata = mdates.AutoDateFormatter()
     ax.set_ylim(0, 1)
     ax.set_xlim(xlabels[0], xlabels[-1])
+    ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
     ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
     ax.xaxis.set_minor_locator(mdates.HourLocator())
-    ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
-    
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
+
     ax.autoscale_view()
     fig.autofmt_xdate()
     ax.grid(True)
@@ -77,7 +84,10 @@ def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
 
 
 def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
-
+    plt.rcParams['xtick.color'] = 'black'
+    plt.rcParams['ytick.color'] = 'black'
+    plt.rcParams['xtick.bottom'] = True
+    plt.rcParams['ytick.left'] = True
     title = f'Actividad del usuario {user}'
     if df is None:
         df = get_dataset(delete_inconcitencies=False, from_disc=False)
@@ -86,7 +96,6 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
     
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
-    print(data.shape)
     true_date_range = data.index.get_level_values(1)
     date_range = pd.date_range(mindate, maxdate, freq='h', closed='left')
     none_dates = date_range.difference(true_date_range)
@@ -102,36 +111,46 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
     fig, (ax2, ax) = plt.subplots(2, 1, figsize=(15,6), sharex='all')
     fig.suptitle(title, fontsize=16)
 
+
+    ax.xaxis.set_major_locator(mdates.DayLocator())
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
+    ax.xaxis.set_minor_locator(mdates.HourLocator())
+    ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
+
+
     for date in none_dates:
         ax.axvline(mdates.date2num(date))
         ax2.axvline(mdates.date2num(date))
 
+    ax2.axhline(1.5, xlabels[0], xlabels[-1], color='r')
 
-  
-    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
-    ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
-    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+
     ax.set_ylim(0, 1)
+    ax2.set_ylim(1.3,8.5)
     ax.set_xlim(xlabels[0], xlabels[-1])
-    ax.xaxis.set_major_locator(mdates.DayLocator())
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
-    ax.xaxis.set_minor_locator(mdates.HourLocator())
-    ax.yaxis.set_major_locator(plt.MultipleLocator(0.1))
-    ax.autoscale_view()
-    fig.autofmt_xdate()
-    ax.grid(True)
-    ax.set_ylabel('Acumulación de actividad por tipo (%)')
+
+
+    ax.set_ylabel(f'% de actividad por tipo')
     ax.set_xlabel('Tiempo')
-    ax.legend(loc='upper right')
+    ax2.set_ylabel('Nivel de MET')
 
     data = addSedentaryLevel(get_user_data(df, user)).slevel
 
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
+    
+    for x in [ax, ax2]:
+        x.autoscale_view()
+        x.grid(True)
+
+    fig.autofmt_xdate()
+
+    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
+    ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
+    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+    ax.legend(loc='upper right')
     ax2.plot(xlabels, data.values)
-    ax.set_ylabel('Acumulación de actividad por tipo (%)')
-    ax.set_xlabel('Tiempo')
-    fig
+
     plt.show()
 
 
@@ -199,17 +218,6 @@ def plot_met_distribution(df=None, user=-1, log_transform=False):
     plt.ylabel('Cant. ocurrencias')
 
 
-def get_hour_labels():
-    hours = []
-    for h in range(0, 24):
-        if h < 10:
-            str = '0{0}:00'.format(h)
-        else:
-            str = '{0}:00'.format(h)
-        hours.append(str)
-    return hours
-
-
 def plot_heatmap(metric, user=-1):
     '''
     Plot a heatmap with entries for each day of week and hour of day combination.
@@ -219,32 +227,35 @@ def plot_heatmap(metric, user=-1):
     The metric can be 'mean' or 'std'
 
     '''
-    df = get_lagged_dataset()
+    df = get_dataset()
     plt.close()
-    if user >= 0:
-        dfuser = get_user_data(df, user)
-    else:
-        dfuser = df
-    dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
-    dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
-    days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    userdata = dfuser.groupby(['dayofweek', 'hourofday'])['slevel']
-    if metric == 'mean':
-        userdata = userdata.mean()
-        userdata = userdata.reset_index()
-        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
-        sns.heatmap(userdata, vmin=1.3, cmap='RdBu_r')
-    elif metric == 'std':
-        userdata = userdata.std()
-        userdata = userdata.reset_index()
-        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
-        sns.heatmap(userdata, vmin=0, cmap='autumn_r')
-    plt.title('{0} activity of user {1}'.format(metric, user))
-    plt.ylabel('Day of week')
-    plt.xlabel('Hour of day')
-    plt.yticks(np.arange(0.5, 7.5), days, rotation='horizontal')
-    plt.xticks(np.arange(0.5, 24.5), get_hour_labels(), rotation='vertical')
 
+    fig, ax = plt.subplots(figsize=(6,4))
+
+    if user >= 0:
+        df = get_user_data(df, user)
+
+    df = df.loc[:,'slevel'].to_frame()
+    df['hourofday'] = df.index.get_level_values(1).strftime('%H:00')
+    df['dayofweek'] = df.index.get_level_values(1).strftime('%w')
+    df['dayofweek_name'] = df.index.get_level_values(1).strftime('%A').str.title()
+    data = df.groupby(['dayofweek', 'dayofweek_name', 'hourofday'])['slevel'].agg(['mean', 'std']).reset_index().sort_values('dayofweek')
+    re_order = pd.DataFrame(data.dayofweek.drop_duplicates().values, data.dayofweek_name.drop_duplicates().values)
+    data = data.pivot(index='dayofweek_name', columns='hourofday')[metric]
+    data = data.reindex(re_order.index)
+    if metric == 'mean':
+        sns.heatmap(data, vmin=1.3,linewidths=.03, cmap='RdBu_r')
+        m = 'Promedio'
+    elif metric == 'std':
+        sns.heatmap(data, vmin=0,linewidths=.03, cmap='autumn_r')
+        m = 'Desviación estándar'
+    if user>0:
+        plt.title(f'{m} de la actividad del usuario {user}')
+    else:
+        plt.title(f'{m} de la actividad de todos los usuarios')
+
+    plt.ylabel('Día de la semana ')
+    plt.xlabel('Hora del día')
     plt.show()
 
 
@@ -254,7 +265,7 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
 
     '''
 
-    df = get_lagged_dataset()
+    df = get_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
