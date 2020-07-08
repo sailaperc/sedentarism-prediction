@@ -11,7 +11,7 @@ from matplotlib import colors
 import seaborn as sns
 sns.set_style("whitegrid")
 
-def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
+def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
     '''
     Plot the cumulative activity type of a specific user between mindate and maxdate
     The default mindate and mindate is too broad and does not work
@@ -76,9 +76,9 @@ def show_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     # https://docs.python.org/3/library/datetime.html#strftime-strptime-behavior
 
 
-def show_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
+def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
 
-    title = 'Actividad por tipo a lo largo del tiempo'
+    title = f'Actividad del usuario {user}'
     if df is None:
         df = get_dataset(delete_inconcitencies=False, from_disc=False)
 
@@ -100,6 +100,7 @@ def show_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
 
     plt.close()
     fig, (ax2, ax) = plt.subplots(2, 1, figsize=(15,6), sharex='all')
+    fig.suptitle(title, fontsize=16)
 
     for date in none_dates:
         ax.axvline(mdates.date2num(date))
@@ -130,7 +131,7 @@ def show_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
     ax2.plot(xlabels, data.values)
     ax.set_ylabel('Acumulación de actividad por tipo (%)')
     ax.set_xlabel('Tiempo')
-
+    fig
     plt.show()
 
 
