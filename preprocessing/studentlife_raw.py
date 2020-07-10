@@ -109,7 +109,7 @@ def create_sensing_table(sensor):
 
 def create_sensing_tables():
     sensor_data_files = ['activity', 'audio', 'bt','gps', 'dark',
-                         'phonelock', 'wifi', 'phonecharge',
+                         'phonelock', 'wifi', 'phonecharge', 'bt',
                          'calendar', 'wifi_location', 'conversation']
     for file in sensor_data_files:
         create_sensing_table(file)
@@ -133,7 +133,7 @@ def get_studentlife_dataset(freq='1h'):
 
     def fill_by_interval(df, col):
         tuples = list()
-        for index, t in df.iterrows():
+        for _, t in df.iterrows():
             tuples +=  [ (t.userId, d) for d in pd.date_range(start=t['start'], end=t['end'], freq=freq)]
 
         #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
@@ -147,13 +147,13 @@ def get_studentlife_dataset(freq='1h'):
 
     def count_by_interval(df, col):
         tuples = list()
-        for index, t in df.iterrows():
+        for _, t in df.iterrows():
             if t['start'] == t['end']:
                 r = pd.date_range(start=t['start'], end=t['end'], freq=freq)
             else:
                 r = [t['start']]
             tuples +=  [ (t.userId, d) for d in r]
-        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
+        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start are equal
         ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s'])
         aux_series = pd.Series(index=ind)
         convs_per_hour = aux_series.groupby(aux_series.index).size().astype('int')
@@ -206,20 +206,24 @@ def get_studentlife_dataset(freq='1h'):
         # 2013-06-01 3:00:00
 
         #time related features
+
         # hourofday
 
         hours = s.index.get_level_values('time').hour
-        s['hourSine'] = np.sin(2 * np.pi * hours / 23.0)
-        s['hourCosine'] = np.cos(2 * np.pi * hours / 23.0)
+        s['hour_sin'] = np.sin(2 * np.pi * hours / 23.0)
+        s['hour_cos'] = np.cos(2 * np.pi * hours / 23.0)
 
         # dayofweek
         dayofweek = s.index.get_level_values('time').dayofweek
-        s['dayofweekSine'] = np.sin(2 * np.pi * dayofweek / 23.0)
-        s['dayofweekCosine'] = np.cos(2 * np.pi * dayofweek / 23.0)
+        s['dayofweek_sin'] = np.sin(2 * np.pi * dayofweek / 23.0)
+        s['dayofweek_cos'] = np.cos(2 * np.pi * dayofweek / 23.0)
 
-
+        # past minutes since the day began and remaining minutes of the day
         s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
         s['remainingminutes'] = 24 * 60 - s['pastminutes']
+
+        s['is_weekend'] = s.index[1].dayofweek in [0,6]
+
 
         # prepare audio data
         adata = get_sensor_data('audio')
@@ -254,25 +258,34 @@ def get_studentlife_dataset(freq='1h'):
 
         # latitude and longitude mean and std
         gpsdata = get_sensor_data('gps')
-        gpsdata = floor_time(gpsdata)
+        #gpsdata = floor_time(gpsdata)
 
-        
-        # gpsdata.loc[gpsdata['travelstate'].isna() & gpsdata['speed']>0, 'travelstate'] = 'moving'
-        # gpsdata.loc[gpsdata['travelstate'].isna(), 'travelstate'] = 'stationary'
-        # kmeans = cluster.KMeans(15)
-        # kmeans.fit(gpsdata[['latitude', 'longitude']].values)
-        # gpsdata['place'] = kmeans.predict(gpsdata[['latitude', 'longitude']])
-        # s['place'] = gpsdata.groupby(['userId', 'time'])['place'].apply(Most_Common)
+        gpsdata = gpsdata.loc[:,['latitude','longitude', 'time', 'userId']]
+        gpsdata['time'] = pd.to_datetime(gpsdata['time'], unit='s')
+        gpsdata_shifted = gpsdata.groupby('userId').shift(1)
+        gpsdata_shifted.columns = [f's_{col}' for col in gpsdata.columns if col!='userId']
+        gpsdata = pd.concat([gpsdata, gpsdata_shifted], axis=1)
+        gpsdata.dropna(axis=0, inplace=True)
+        gpsdata['diff_date'] = (gpsdata.time - gpsdata.s_time).dt.seconds
+        gpsdata['diff_lat'] = gpsdata.latitude - gpsdata.s_latitude
+        gpsdata['diff_lon'] = gpsdata.longitude - gpsdata.s_longitude
+        gpsdata['instantaneous_speed'] = np.sqrt( np.square(gpsdata.diff_lat / gpsdata.diff_date) + 
+                                    np.square(gpsdata.diff_lon / gpsdata.diff_date))
 
-        # s['distanceTraveled'] = gpsdata.groupby( by= ['userId', pd.Grouper(key='time', freq='H')])['latitude','longitude'].\
-        #   apply(get_total_harversine_distance_traveled)
-        # s['distanceTraveled'].fillna(0, inplace=True)
+        gpsdata['lat_plus_lon'] = np.sqrt(np.square(gpsdata.diff_lat) + np.square(gpsdata.diff_lon))
+        gpsdata.time = gpsdata.time.dt.floor(freq)
+        g = gpsdata.groupby(['userId','time'])
+        date_features = g.agg({'instantaneous_speed': ['mean','var'], 'lat_plus_lon': 'sum'})
+        date_features.columns = ['speed_mean', 'speed_variance','total_distance']
+        date_features.fillna(0, inplace=True)
+
         gps_grouped = gpsdata.groupby(['userId', 'time'])
-        s['locationStd'] = gps_grouped['longitude'].std() + gps_grouped['latitude'].std()
-        s['locationMean'] = gps_grouped['longitude'].mean() + gps_grouped['latitude'].mean()
-        s.loc[:, 'locationStd'].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
+        s['locationVariance'] = np.log1p(gps_grouped['longitude'].var() + gps_grouped['latitude'].var())
+        s['locationMean'] = np.log1p(gps_grouped['longitude'].mean() + gps_grouped['latitude'].mean())
+        s.loc[:, 'locationVariance'].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
         s.loc[:, 'locationMean'].fillna(method='ffill', axis=0, inplace=True) # if it is NaN I suppose the user stayed in the same position
 
+        s = pd.concat([s,date_features], axis=1)
 
         # prepare charge data
         chargedata = get_sensor_data('phonecharge')

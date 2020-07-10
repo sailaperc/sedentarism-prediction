@@ -10,6 +10,8 @@ import seaborn as sns
 from matplotlib import colors
 import seaborn as sns
 import locale
+from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
 locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 sns.set_style("whitegrid")
 # to see what rcParams has changed with importing sns
@@ -471,3 +473,35 @@ def plot_by_month(user):
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
 
+def plot_user_selection():
+    df = get_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count','mean', 'std'])
+    #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
+
+    nb_kmean = 3
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+
+    y = 'Grupo ' + pd.Series(kmeans.predict(d).astype('str'))
+    closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
+    for i in closest:
+        y[i] = 'Selec'
+
+
+    df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns = d.columns)
+    #d = pd.concat([d,df_kmeans], axis=0)
+
+    #y = y.append(pd.Series(['Centroid'] * nb_kmean), ignore_index=True)
+    y.index = d.index
+    y = y.to_frame('y')
+    d = pd.concat([d,y], axis=1)
+    # d['colors'] = 'r'
+    # d.loc[d['y']=='Grupo 1','colors'] = 'b'  
+    # d.loc[d['y']=='Grupo 2','colors'] = 'o'  
+    # d.loc[d['y']=='Centroid','colors'] = 'c'  
+    # d.loc[d['y']=='Selec','colors'] = 'k'
+    #colors = list(d.colors)
+    d.columns = ['Cantidad buckets', 'Promedio MET', 'Std MET', 'Grupo']
+    ax = sns.relplot(x='Cantidad buckets', y='Promedio MET', hue='Grupo', size='Std MET',
+                        sizes=(50,350), 
+                    alpha=.6, data=d)
