@@ -77,6 +77,7 @@ def downgrade_datatypes(df):
     df[converted_float.columns] = converted_float
     return df
 
+
 def create_sensing_table(sensor):
     """
     Creates one dataframe from all the sensor data of all users
@@ -181,19 +182,13 @@ def get_studentlife_dataset(freq='1h'):
         max_date = sdata.time.max()
         dindex = pd.date_range(min_date, max_date, freq=freq)
         index = pd.MultiIndex.from_product(iterables=[uindex, dindex],
-                                           names=['userId', 'time'])
+                                            names=['userId', 'time'])
         s = pd.DataFrame(index = index)
 
         sdata = pd.concat([sdata, pd.get_dummies(sdata['activityId'], prefix='act')], axis=1, sort=False)
 
         # logs per activity
         count_per_activity = sdata.groupby(['userId', 'time'])[['act_0', 'act_1', 'act_2']].sum()
-
-        #s.loc[:, 'stationaryLevel'] = grouped['act_0'].mean()
-        #s.loc[:, 'walkingLevel'] = grouped['act_1'].mean()
-        #s.loc[:, 'runningLevel'] = grouped['act_2'].mean()
-
-        #_, s = s.align(count_per_activity, axis=None, join='outer')
 
         for col in count_per_activity.columns:
             s[col] = count_per_activity[col].astype('int')
@@ -202,27 +197,25 @@ def get_studentlife_dataset(freq='1h'):
         s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common).astype('object')
         #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
 
-        # 2013-03-27 04:00:00
-        # 2013-06-01 3:00:00
 
-        #time related features
+        seconds = s.index.get_level_values('time').seconds
+        seconds_in_day = 24*60*60
+        df['second_sin'] = np.sin(2*np.pi*seconds / seconds_in_day)
+        df['second_cos'] = np.cos(2*np.pi*seconds / seconds_in_day)
 
-        # hourofday
-
-        hours = s.index.get_level_values('time').hour
-        s['hour_sin'] = np.sin(2 * np.pi * hours / 23.0)
-        s['hour_cos'] = np.cos(2 * np.pi * hours / 23.0)
 
         # dayofweek
         dayofweek = s.index.get_level_values('time').dayofweek
-        s['dayofweek_sin'] = np.sin(2 * np.pi * dayofweek / 23.0)
-        s['dayofweek_cos'] = np.cos(2 * np.pi * dayofweek / 23.0)
+        days_in_week = 7
+        s['dayofweek_sin'] = np.sin(2 * np.pi * dayofweek / days_in_week)
+        s['dayofweek_cos'] = np.cos(2 * np.pi * dayofweek / days_in_week)
 
         # past minutes since the day began and remaining minutes of the day
-        s['pastminutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
-        s['remainingminutes'] = 24 * 60 - s['pastminutes']
+        s['past_minutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
+        s['remaining_minutes'] = 24 * 60 - s['past_minutes']
 
-        s['is_weekend'] = s.index[1].dayofweek in [0,6]
+        s['is_weekend'] = ((s.index.get_level_values(1).dayofweek==0) | \
+            (s.index.get_level_values(1).dayofweek==6))
 
 
         # prepare audio data
@@ -235,11 +228,8 @@ def get_studentlife_dataset(freq='1h'):
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
         s.loc[:, 'audiomajor'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
-        s.audiomajor = s.audiomajor.astype('object')
-        # 0	Silence
-        # 1	Voice
-        # 2	Noise
-        # 3	Unknow
+        s.audiomajor = s.audiomajor.astype('object')    
+
 
         adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='audio')], axis=1, sort=False)
 
@@ -248,13 +238,7 @@ def get_studentlife_dataset(freq='1h'):
 
 
         for col in count_per_audio.columns:
-            s[col] = count_per_audio[col].astype('int')
-
-        # logs per activity
-        #s.loc[:, 'silenceLevel'] = adata.groupby(['userId', 'time'])['act_0'].mean()
-        #s.loc[:, 'voiceLevel'] = adata.groupby(['userId', 'time'])['act_1'].mean()
-        #s.loc[:, 'noiseLevel'] = adata.groupby(['userId', 'time'])['act_2'].mean()
-        #s.fillna(0, inplace=True)
+            s[col] = count_per_audio[col].astype('int64')
 
         # latitude and longitude mean and std
         gpsdata = get_sensor_data('gps')
@@ -271,21 +255,21 @@ def get_studentlife_dataset(freq='1h'):
         gpsdata['diff_lon'] = gpsdata.longitude - gpsdata.s_longitude
         gpsdata['instantaneous_speed'] = np.sqrt( np.square(gpsdata.diff_lat / gpsdata.diff_date) + 
                                     np.square(gpsdata.diff_lon / gpsdata.diff_date))
-
         gpsdata['lat_plus_lon'] = np.sqrt(np.square(gpsdata.diff_lat) + np.square(gpsdata.diff_lon))
         gpsdata.time = gpsdata.time.dt.floor(freq)
         g = gpsdata.groupby(['userId','time'])
         date_features = g.agg({'instantaneous_speed': ['mean','var'], 'lat_plus_lon': 'sum'})
         date_features.columns = ['speed_mean', 'speed_variance','total_distance']
         date_features.fillna(0, inplace=True)
-
         gps_grouped = gpsdata.groupby(['userId', 'time'])
-        s['locationVariance'] = np.log1p(gps_grouped['longitude'].var() + gps_grouped['latitude'].var())
-        s['locationMean'] = np.log1p(gps_grouped['longitude'].mean() + gps_grouped['latitude'].mean())
-        s.loc[:, 'locationVariance'].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
-        s.loc[:, 'locationMean'].fillna(method='ffill', axis=0, inplace=True) # if it is NaN I suppose the user stayed in the same position
+        s['location_variance'] = gps_grouped['longitude'].var() + gps_grouped['latitude'].var()
+        s['location_mean'] = gps_grouped['longitude'].mean() + gps_grouped['latitude'].mean()
+        s = s.join(date_features)
 
-        s = pd.concat([s,date_features], axis=1)
+        s.loc[:, 'location_mean'] = s.groupby(level=0)['location_mean'].fillna(method='ffill', axis=0). \
+            groupby(level=0).fillna(method='bfill', axis=0)
+        for col in ['location_variance', 'speed_mean', 'speed_variance','total_distance']:
+            s.loc[:, col].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
 
         # prepare charge data
         chargedata = get_sensor_data('phonecharge')
@@ -312,72 +296,12 @@ def get_studentlife_dataset(freq='1h'):
         # isInDark
         fill_by_interval(darkdata, 'isInDark')
 
-
-
-
         # prepare conversation data
         conversationData = get_sensor_data('conversation')
         conversationData.columns = ['start', 'end', 'userId']
         conversationData = floor_time(conversationData, 'start')
         conversationData = floor_time(conversationData, 'end')
         count_by_interval(conversationData, 'nbConv')
-
-        '''
-        #cargo los datos de deadlines
-        deadlines = get_sensor_data('deadlines').iloc[:, 0:72]
-        deadlines = pd.melt(deadlines, id_vars='uid', var_name='time', value_name='exams')
-        deadlines['time'] = pd.to_datetime(deadlines['time'])
-        deadlines['uid'] = deadlines['uid'].str.replace('u', '', regex=True).astype('int')
-        deadlines = deadlines.loc[deadlines['exams'] > 0]
-        deadlines = deadlines.set_index('uid')
-    
-    
-        a = pd.to_datetime(max(deadlines['time']), yearfirst=True)
-        b = pd.to_datetime(min(deadlines['time']), yearfirst=True)
-        maxTime = int((a-b).total_seconds()/3600)
-    
-        #beforeNextDeadline
-        s['beforeNextDeadline'] = 0
-        def getHourstoNextDeadLine(user, date):
-            try: #para usuarios sobre los que no hay datos de examenes
-                possibledeadlines = deadlines.loc[user, 'time']
-                possibledeadlines = possibledeadlines[possibledeadlines >= date.floor('h')]
-                if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
-                    deadline = min(possibledeadlines)
-                    if date.floor('h') == deadline:
-                        return 0
-                    else:
-                        diff = int((deadline - date).total_seconds()/3600)
-                    return diff
-                return maxTime
-            except KeyError:
-                return maxTime
-    
-    
-        for ind, row in s.iterrows():
-            s.at[ind, 'beforeNextDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
-    
-        #afterLastDeadline
-        s['afterLastDeadline'] = 0
-        def getHourstoNextDeadLine(user, date):
-            try: #para usuarios sobre los que no hay datos de examenes
-                possibledeadlines = deadlines.loc[user, 'time']
-                possibledeadlines = possibledeadlines[possibledeadlines < date.floor('h')]
-                if not possibledeadlines.empty: #para cuando no hay mas fechas de examenes
-                    deadline = max(possibledeadlines)
-                    if date.floor('h') == deadline:
-                        return 0
-                    else:
-                        diff = int((date - deadline).total_seconds()/3600)
-                    return diff
-                return maxTime
-            except KeyError:
-                return maxTime
-    
-    
-        for ind, row in s.iterrows():
-            s.at[ind, 'afterLastDeadline'] = getHourstoNextDeadLine(ind[0], pd.to_datetime(ind[1]))
-        '''
 
         calendardata = get_sensor_data('calendar')
         calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
@@ -419,5 +343,4 @@ def get_studentlife_dataset(freq='1h'):
     return downgrade_datatypes(pd.read_pickle(filename))
 
 
-df = get_studentlife_dataset()
 

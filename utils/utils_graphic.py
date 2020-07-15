@@ -1,4 +1,3 @@
-#%%
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
@@ -505,3 +504,32 @@ def plot_user_selection():
     ax = sns.relplot(x='Cantidad buckets', y='Promedio MET', hue='Grupo', size='Std MET',
                         sizes=(50,350), 
                     alpha=.6, data=d)
+
+
+def plot_sin_cos_transformation_proof():
+
+    def rand_times(n):
+        """Generate n rows of random 24-hour times (seconds past midnight)"""
+        rand_seconds = np.random.randint(0, 24*60*60, n)
+        return pd.DataFrame(data=dict(seconds=rand_seconds))
+
+    n_rows = 1000
+
+    df = rand_times(n_rows)
+    # sort for the sake of graphing
+    df = df.sort_values('seconds').reset_index(drop=True)
+    df.head()
+
+    seconds_in_day = 24*60*60
+
+    df['Seno'] = np.sin(2*np.pi*df.seconds/seconds_in_day)
+    df['Coseno'] = np.cos(2*np.pi*df.seconds/seconds_in_day)
+    df.drop('seconds', axis=1, inplace=True)
+
+    df.head()
+
+
+    df['Coseno'].plot()
+
+    df.sample(75).plot.scatter('Seno','Coseno', title= 'Transformaciones trigonométricas').set_aspect('equal')
+
