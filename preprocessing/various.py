@@ -31,10 +31,7 @@ def addSedentaryClasses(df, drop_slevel= True):
 
     """
     dfcopy = df.copy()
-    dfcopy['sclass'] = ''
-    dfcopy.loc[df['slevel'] >= 1.5, 'sclass'] = 0.0  # 'sedentary'
-    dfcopy.loc[df['slevel'] < 1.5, 'sclass'] = 1.0  # 'not sedentary'
-    # dfcopy['actualClass'] = dfcopy['sclass']
+    dfcopy['sclass'] = (df['slevel'] < 1.5) * 1.0
     if drop_slevel:
         dfcopy.drop(['slevel'], inplace=True, axis=1)
     return dfcopy
@@ -48,6 +45,16 @@ def makeDummies(df):
     categorical_cols = df.select_dtypes(include='object').columns
     df = pd.concat([df, pd.get_dummies(df[categorical_cols])], axis=1)
     df.drop(categorical_cols, inplace=True, axis=1)
+    return df
+
+
+def downgrade_datatypes(df):
+    df_int = df.select_dtypes(include=['int'])
+    converted_int = df_int.apply(pd.to_numeric, downcast='signed')
+    df[converted_int.columns] = converted_int
+    df_float = df.select_dtypes(include=['float'])
+    converted_float = df_float.apply(pd.to_numeric, downcast='float')
+    df[converted_float.columns] = converted_float
     return df
 
 

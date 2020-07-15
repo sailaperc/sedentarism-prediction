@@ -16,10 +16,10 @@ def get_user_data(data, userId):
     Get data of a specific user
 
     """
-    try:
-        return data.loc[data.index.get_level_values(0) == userId].copy()
-    except KeyError:
-        print('El usuario ', userId, ' no existe.')
+    result = data.loc[data.index.get_level_values(0) == userId].copy()
+    assert (result.shape[0]!=0), 'The user does not exist.'
+    return result
+
 
 
 def get_not_user_data(data, userId):

@@ -4,7 +4,7 @@ import numpy as np
 from collections import Counter
 from utils.utils import file_exists
 from datetime import datetime
-
+from preprocessing.various import downgrade_datatypes
 
 '''
 
@@ -68,14 +68,6 @@ def get_total_harversine_distance_traveled(x):
     return d
 '''
 
-def downgrade_datatypes(df):
-    df_int = df.select_dtypes(include=['int'])
-    converted_int = df_int.apply(pd.to_numeric, downcast='signed')
-    df[converted_int.columns] = converted_int
-    df_float = df.select_dtypes(include=['float'])
-    converted_float = df_float.apply(pd.to_numeric, downcast='float')
-    df[converted_float.columns] = converted_float
-    return df
 
 
 def create_sensing_table(sensor):
@@ -191,17 +183,17 @@ def get_studentlife_dataset(freq='1h'):
         count_per_activity = sdata.groupby(['userId', 'time'])[['act_0', 'act_1', 'act_2']].sum()
 
         for col in count_per_activity.columns:
-            s[col] = count_per_activity[col].astype('int')
+            s[col] = count_per_activity[col].astype('int64')
 
         # activitymajor
         s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common).astype('object')
         #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
 
 
-        seconds = s.index.get_level_values('time').seconds
-        seconds_in_day = 24*60*60
-        df['second_sin'] = np.sin(2*np.pi*seconds / seconds_in_day)
-        df['second_cos'] = np.cos(2*np.pi*seconds / seconds_in_day)
+        hour = s.index.get_level_values('time').hour
+        hours_in_day = 24
+        s['second_sin'] = np.sin(2*np.pi*hour / hours_in_day)
+        s['second_cos'] = np.cos(2*np.pi*hour / hours_in_day)
 
 
         # dayofweek
@@ -209,6 +201,10 @@ def get_studentlife_dataset(freq='1h'):
         days_in_week = 7
         s['dayofweek_sin'] = np.sin(2 * np.pi * dayofweek / days_in_week)
         s['dayofweek_cos'] = np.cos(2 * np.pi * dayofweek / days_in_week)
+
+        #weekofyear
+        s['weekofyear'] = s.index.get_level_values('time').weekofyear
+
 
         # past minutes since the day began and remaining minutes of the day
         s['past_minutes'] = s.index.get_level_values(1).hour * 60 + s.index.get_level_values(1).minute
@@ -338,7 +334,7 @@ def get_studentlife_dataset(freq='1h'):
 
         s.to_pickle(filename)
     else:
-        print('Prepocessed StudentLife dataset already generated!')
+        print('Prepocessed StudentLife dataset already generated! Loading it...')
 
     return downgrade_datatypes(pd.read_pickle(filename))
 
