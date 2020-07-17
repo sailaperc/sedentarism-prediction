@@ -156,6 +156,11 @@ def get_studentlife_dataset(freq='1h'):
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
         print(f'{filename} does not exist. This may take a while...')
+
+        ######################################################################
+        # TDI
+        ######################################################################      
+          
         # prepare activity data
         sdata = get_sensor_data('activity')
         sdata.columns = ['time', 'activityId', 'userId']
@@ -220,10 +225,10 @@ def get_studentlife_dataset(freq='1h'):
         adata = floor_time(adata)
 
         # audiomajor
-        s['audiomajor'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common)
+        s['audio_major'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common)
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
-        s.loc[:, 'audiomajor'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
+        s.loc[:, 'audio_major'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
         s.audiomajor = s.audiomajor.astype('object')    
 
 
@@ -267,45 +272,7 @@ def get_studentlife_dataset(freq='1h'):
         for col in ['location_variance', 'speed_mean', 'speed_variance','total_distance']:
             s.loc[:, col].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
 
-        # prepare charge data
-        chargedata = get_sensor_data('phonecharge')
-        chargedata = floor_time(chargedata, 'start')
-        chargedata = floor_time(chargedata, 'end')
 
-
-
-        fill_by_interval(chargedata, 'isCharging')
-        #s.drop('numberOfConversations', axis=1, inplace=True)
-
-        # prepare lock data
-        lockeddata = get_sensor_data('phonelock')
-        lockeddata = floor_time(lockeddata, 'start')
-        lockeddata = floor_time(lockeddata, 'end')
-
-        # isLocked
-        fill_by_interval(lockeddata, 'isLocked')
-
-        # prepare dark data
-        darkdata = get_sensor_data('dark')
-        darkdata = floor_time(darkdata, 'start')
-        darkdata = floor_time(darkdata, 'end')
-        # isInDark
-        fill_by_interval(darkdata, 'isInDark')
-
-        # prepare conversation data
-        conversationData = get_sensor_data('conversation')
-        conversationData.columns = ['start', 'end', 'userId']
-        conversationData = floor_time(conversationData, 'start')
-        conversationData = floor_time(conversationData, 'end')
-        count_by_interval(conversationData, 'nbConv')
-
-        calendardata = get_sensor_data('calendar')
-        calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
-        calendardata['time'] = calendardata['time'].dt.floor(freq)
-        calendardata = calendardata.set_index(['userId', 'time'])
-
-        s['hasCalendarEvent'] = False
-        s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
 
         # hay datos sobre los wifi mas cercano y ademas sobre los que el usuario estuvo
         # dentro del lugar dnd estaba el wifi,
@@ -327,10 +294,49 @@ def get_studentlife_dataset(freq='1h'):
         wifidataIn.reset_index(inplace=True, drop=True)
 
         wifiChanges = wifidataIn.groupby(['userId', 'time'])['location'].nunique().astype('int')
-        s.loc[:, 'wifiChanges'] = wifiChanges
-        s.wifiChanges.fillna(0, inplace=True)
+        s.loc[:, 'wifi_changes'] = wifiChanges
+        s.wifi_changes.fillna(0, inplace=True)
         # a = wifidataIn.groupby(['userId', 'time'])['location']
         # wifidataNear = wfidata.loc[wifidata['location'].str.startswith('near')]
+
+
+
+        ######################################################################
+        # TDI
+        ######################################################################
+        # is_charging
+        chargedata = get_sensor_data('phonecharge')
+        chargedata = floor_time(chargedata, 'start')
+        chargedata = floor_time(chargedata, 'end')
+        fill_by_interval(chargedata, 'is_charging')
+
+        # isLocked
+        lockeddata = get_sensor_data('phonelock')
+        lockeddata = floor_time(lockeddata, 'start')
+        lockeddata = floor_time(lockeddata, 'end')
+        fill_by_interval(lockeddata, 'is_locked')
+        
+        # isInDark
+        darkdata = get_sensor_data('dark')
+        darkdata = floor_time(darkdata, 'start')
+        darkdata = floor_time(darkdata, 'end')
+        fill_by_interval(darkdata, 'is_in_dark')
+
+        # prepare conversation data
+        conversationData = get_sensor_data('conversation')
+        conversationData.columns = ['start', 'end', 'userId']
+        conversationData = floor_time(conversationData, 'start')
+        conversationData = floor_time(conversationData, 'end')
+        count_by_interval(conversationData, 'nb_conv')
+
+        calendardata = get_sensor_data('calendar')
+        calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
+        calendardata['time'] = calendardata['time'].dt.floor(freq)
+        calendardata = calendardata.set_index(['userId', 'time'])
+
+        s['hasCalendarEvent'] = False
+        s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
+
 
         s.to_pickle(filename)
     else:
