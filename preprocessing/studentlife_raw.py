@@ -6,69 +6,7 @@ from utils.utils import file_exists
 from datetime import datetime
 from preprocessing.various import downgrade_datatypes
 from datetime import timedelta, datetime
-
-'''
-
-#Audio Inference
-#ID	Description
-#0	Silence
-#1	Voice
-#2	Noise
-#3	Unknown
-
-#Activity Inference ID	Description
-#0	Stationary
-#1  Walking
-#2	Running
-#3	Unknown
-
-cuando la actividad que mas se lleva a cabo es unknown, el porcentaje de actividad
-sedentaria para esa hora es similar al promedio de actividad sedentaria para las
-hora donde la act q mas se lleva a cabo es 1 (walking), por eso se lo va a tomar
-como si fuera de ese tipo
-
-activitymajor
-0    0.937012
-1    0.296808
-2    0.073199
-3    0.201710
-
-
-#
-#
-# ## Feature generation ##
-#
-# **Features:**
-# * Stationaty mean per hour
-# * Day of the week (weekday,saturday or sunday)
-# * Hour of the day
-# * activityMajor: the type of activity with the most instances in a 1-hour time bucket
-# * audioMajor
-# * latitude average and stv
-# * longitud avg and stv
-# * is Charging
-
-#como tratar los valores nulos??
-    # los deadlines son solo de 44 de 49 estudiantes
-    # los datos de audio no estan para todas la horas de todos los estudiantes
-    # los datos de ubicacion son infimos
-
-
-hay 14420.575126 en promedio de muestros de actividad por hora
-'''
-
-'''
-def get_total_harversine_distance_traveled(x):
-    d = 0.0
-    samples = x.shape[0]
-    for i in np.arange(0, samples):
-        try:
-            d += haversine(x.iloc[i, :].values, x.iloc[i + 1, :].values)
-        except IndexError:
-            pass
-    return d
-'''
-
+from utils.utils import get_granularity_from_minutes
 
 
 def create_sensing_table(sensor):
@@ -127,10 +65,7 @@ def get_studentlife_dataset(nb_min):
         data = Counter(lst)
         return data.most_common(1)[0][0]
 
-    if nb_min % 60 == 0:
-        freq = f'{int(nb_min/60)}h'
-    else:
-        freq = f'{nb_min}min'
+    freq = get_granularity_from_minutes(nb_min)
         
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
@@ -139,7 +74,7 @@ def get_studentlife_dataset(nb_min):
 
 
         ######################################################################
-        # TDI
+        # TSD
         ######################################################################      
           
         # prepare activity data
@@ -204,23 +139,23 @@ def get_studentlife_dataset(nb_min):
         adata = get_sensor_data('audio')
         adata.columns = ['time', 'audioId', 'userId']
         adata = floor_time(adata)
+        
+        adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='audio')], axis=1, sort=False)
+
+        # logs per audio
+        audio_groups = adata.groupby(['userId', 'time'])
+        count_per_audio = audio_groups[['audio_0', 'audio_1', 'audio_2']].sum()
+
+        for col in count_per_audio.columns:
+            s[col] = count_per_audio[col].astype('int64')
 
         # audiomajor
-        s['audio_major'] = adata.groupby(['userId', 'time'])['audioId'].apply(most_common)
+        s['audio_major'] = audio_groups['audioId'].apply(most_common)
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
         s.loc[:, 'audio_major'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
         s.loc[:,'audio_major'] = s.audio_major.astype('object')    
 
-
-        adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='audio')], axis=1, sort=False)
-
-
-        count_per_audio = adata.groupby(['userId', 'time'])[['audio_0', 'audio_1', 'audio_2']].sum()
-
-
-        for col in count_per_audio.columns:
-            s[col] = count_per_audio[col].astype('int64')
 
         # latitude and longitude mean and std
         gpsdata = get_sensor_data('gps')
@@ -281,7 +216,7 @@ def get_studentlife_dataset(nb_min):
 
 
         ######################################################################
-        # TDI
+        # TSI
         ######################################################################
         
         def add_interval_features(s, df, col, with_number=False):
@@ -338,10 +273,6 @@ def get_studentlife_dataset(nb_min):
                 s[col_nb].fillna(0, inplace=True)
             return s
 
-        
-        # is_charging
-        locked_data = get_sensor_data('phonelock')
-        s = add_interval_features(s, locked_data, 'testing')
 
         # is_charging
         chargedata = get_sensor_data('phonecharge')
@@ -368,8 +299,9 @@ def get_studentlife_dataset(nb_min):
         # s['hasCalendarEvent'] = False
         # s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
 
-
         s.to_pickle(filename)
+        print('StudentLife feature generation finished.')
+
     else:
         print('Prepocessed StudentLife dataset already generated! Loading it...')
 
