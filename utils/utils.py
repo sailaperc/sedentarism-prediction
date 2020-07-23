@@ -48,7 +48,12 @@ def file_exists(file):
     return os.path.exists(file)
 
 
-
+def get_granularity_from_minutes(nb_min):
+    if nb_min % 60 == 0:
+        gran = f'{int(nb_min/60)}h'
+    else:
+        gran = f'{nb_min}min'
+    return gran
 
 
 
