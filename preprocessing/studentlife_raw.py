@@ -5,6 +5,7 @@ from collections import Counter
 from utils.utils import file_exists
 from datetime import datetime
 from preprocessing.various import downgrade_datatypes
+from datetime import timedelta, datetime
 
 '''
 
@@ -112,50 +113,30 @@ def get_sensor_data(sensor) -> pd.DataFrame:
     return downgrade_datatypes(pd.read_pickle(f'pkl/sensing_data/{sensor}.pkl'))
 
 
-def get_studentlife_dataset(freq='1h'):
+def get_studentlife_dataset(nb_min):
 
-    def floor_time(df, col='time'):
-        df[col] = pd.to_datetime(df[col], unit='s').dt.floor(freq)
+    def to_time(df, col='time'):
+        df[col] = pd.to_datetime(df[col], unit='s')
         return df
 
+    def floor_time(df, col='time'):
+        df[col] = to_time(df,col)[col].dt.floor(freq)
+        return df
 
-    def Most_Common(lst):
+    def most_common(lst):
         data = Counter(lst)
         return data.most_common(1)[0][0]
 
-
-    def fill_by_interval(df, col):
-        tuples = list()
-        for _, t in df.iterrows():
-            tuples +=  [ (t.userId, d) for d in pd.date_range(start=t['start'], end=t['end'], freq=freq)]
-
-        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start
-        ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s']).drop_duplicates() 
-
-        aux_series = pd.Series(index=ind, dtype='bool')
-        aux_series[:] = True
-        s[col] = aux_series
-        s.loc[:,col].fillna(False, inplace=True)
-
-
-    def count_by_interval(df, col):
-        tuples = list()
-        for _, t in df.iterrows():
-            if t['start'] == t['end']:
-                r = pd.date_range(start=t['start'], end=t['end'], freq=freq)
-            else:
-                r = [t['start']]
-            tuples +=  [ (t.userId, d) for d in r]
-        #drop duplicates cause there are intervals that matches the hour if finish and the hour of start are equal
-        ind = pd.MultiIndex.from_tuples(tuples, names = ['f','s'])
-        aux_series = pd.Series(index=ind)
-        convs_per_hour = aux_series.groupby(aux_series.index).size().astype('int')
-        s[col] = convs_per_hour
-        s.loc[:,col].fillna(0, inplace=True)
-
+    if nb_min % 60 == 0:
+        freq = f'{int(nb_min/60)}h'
+    else:
+        freq = f'{nb_min}min'
+        
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
         print(f'{filename} does not exist. This may take a while...')
+
+
 
         ######################################################################
         # TDI
@@ -191,7 +172,7 @@ def get_studentlife_dataset(freq='1h'):
             s[col] = count_per_activity[col].astype('int64')
 
         # activitymajor
-        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(Most_Common).astype('object')
+        s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(most_common).astype('object')
         #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
 
 
@@ -225,11 +206,11 @@ def get_studentlife_dataset(freq='1h'):
         adata = floor_time(adata)
 
         # audiomajor
-        s['audio_major'] = adata.groupby(['userId', 'time'])['audioId'].apply(Most_Common)
+        s['audio_major'] = adata.groupby(['userId', 'time'])['audioId'].apply(most_common)
         # los siguientes usuarios poseen horas completas en las cuales no tienen ningun registro de audio
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
         s.loc[:, 'audio_major'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
-        s.audiomajor = s.audiomajor.astype('object')    
+        s.loc[:,'audio_major'] = s.audio_major.astype('object')    
 
 
         adata = pd.concat([adata, pd.get_dummies(adata['audioId'], prefix='audio')], axis=1, sort=False)
@@ -272,8 +253,6 @@ def get_studentlife_dataset(freq='1h'):
         for col in ['location_variance', 'speed_mean', 'speed_variance','total_distance']:
             s.loc[:, col].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
 
-
-
         # hay datos sobre los wifi mas cercano y ademas sobre los que el usuario estuvo
         # dentro del lugar dnd estaba el wifi,
         # hasta elmomento no se utilizan los datos de wifi cercanos
@@ -304,38 +283,90 @@ def get_studentlife_dataset(freq='1h'):
         ######################################################################
         # TDI
         ######################################################################
+        
+        def add_interval_features(s, df, col, with_number=False):
+                    
+            def fill_by_interval_percentage(df):
+                to_process_index = (df.end.dt.ceil(freq) - df.start.dt.floor(freq)) > timedelta(seconds=60*nb_min)
+                while to_process_index.sum() > 0:
+                    aux = df.loc[to_process_index]
+                    interval = aux.start.dt.floor(freq) + timedelta(seconds = 60 * nb_min)
+                    aux1 = aux.copy()
+                    aux1['end'] = interval
+                    aux2 = aux.copy()
+                    aux2['start'] = interval 
+                    df = pd.concat([df[~to_process_index], aux1, aux2], axis=0).reset_index(drop=True)
+                    to_process_index = (df.end.dt.ceil(freq) - df.start.dt.floor(freq)) > timedelta(seconds=60*nb_min)
+
+                df['percentage'] = (df.end - df.start) / timedelta(seconds=60*nb_min)
+                df['time'] = df.start.dt.floor(freq)
+                perc = df.groupby(['userId', 'time'], sort=True)['percentage'].sum()
+                perc.loc[perc>1] = 1.0
+                return perc
+
+            def count_by_interval(df):
+                tuples = list()
+                for _, t in df.iterrows():
+                    if t['start'] != t['end']:
+                        r = pd.date_range(start=t['start'], end=t['end'], freq=freq)
+                    else:
+                        r = [t['start']]
+                    tuples +=  [ (t.userId, d) for d in r]
+                #drop duplicates cause there are intervals that matches the hour if finish and the hour of start are equal
+                ind = pd.MultiIndex.from_tuples(tuples, names = ['userId','time'])
+                aux_series = pd.Series(index=ind)
+                convs_per_hour = aux_series.groupby(aux_series.index).size().astype('int')
+                return convs_per_hour
+                
+
+            df = to_time(df, 'start')
+            df = to_time(df, 'end')
+            col_perc = col + '_percentage'
+            int_perc = fill_by_interval_percentage(df.copy())
+            s[col_perc] = int_perc
+            s[col_perc].fillna(.0, inplace=True)
+            
+            s.loc[:, col] = True 
+            s.loc[s[col_perc]==0.0, col] = False
+            
+            if with_number:
+                df = floor_time(df, 'start')
+                df = floor_time(df, 'end')
+                col_nb = f'{col}_nb'
+                int_nb = count_by_interval(df)
+                s[col_nb] = int_nb
+                s[col_nb].fillna(0, inplace=True)
+            return s
+
+        
+        # is_charging
+        locked_data = get_sensor_data('phonelock')
+        s = add_interval_features(s, locked_data, 'testing')
+
         # is_charging
         chargedata = get_sensor_data('phonecharge')
-        chargedata = floor_time(chargedata, 'start')
-        chargedata = floor_time(chargedata, 'end')
-        fill_by_interval(chargedata, 'is_charging')
+        s = add_interval_features(s, chargedata, 'is_charging')
 
         # isLocked
         lockeddata = get_sensor_data('phonelock')
-        lockeddata = floor_time(lockeddata, 'start')
-        lockeddata = floor_time(lockeddata, 'end')
-        fill_by_interval(lockeddata, 'is_locked')
+        s = add_interval_features(s, lockeddata, 'is_locked')
         
         # isInDark
         darkdata = get_sensor_data('dark')
-        darkdata = floor_time(darkdata, 'start')
-        darkdata = floor_time(darkdata, 'end')
-        fill_by_interval(darkdata, 'is_in_dark')
+        s = add_interval_features(s, darkdata, 'is_in_dark')
 
         # prepare conversation data
         conversationData = get_sensor_data('conversation')
         conversationData.columns = ['start', 'end', 'userId']
-        conversationData = floor_time(conversationData, 'start')
-        conversationData = floor_time(conversationData, 'end')
-        count_by_interval(conversationData, 'nb_conv')
+        s = add_interval_features(s, conversationData, 'is_in_conversation', with_number=True)
 
-        calendardata = get_sensor_data('calendar')
-        calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
-        calendardata['time'] = calendardata['time'].dt.floor(freq)
-        calendardata = calendardata.set_index(['userId', 'time'])
+        # calendardata = get_sensor_data('calendar')
+        # calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
+        # calendardata['time'] = calendardata['time'].dt.floor(freq)
+        # calendardata = calendardata.set_index(['userId', 'time'])
 
-        s['hasCalendarEvent'] = False
-        s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
+        # s['hasCalendarEvent'] = False
+        # s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
 
 
         s.to_pickle(filename)

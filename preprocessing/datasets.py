@@ -91,7 +91,7 @@ def generate_dataset(gran, file_name, dropna, delete_inconcitencies, with_dummie
     return df
 
 
-def get_dataset(gran='1h', dropna=False, delete_inconcitencies=True, with_dummies=True, from_disc=True):
+def get_dataset(gran='1h', dropna=True, delete_inconcitencies=True, with_dummies=True, from_disc=True):
     '''
         Creates a dataset with granularity gran. It uses the preprocesed dataset with the same granularity and makes
         some preprocessing steps (delete the user 52, make dummy variables, drops nans rows and calculate de sLevel feature).
