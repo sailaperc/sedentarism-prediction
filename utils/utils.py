@@ -39,11 +39,7 @@ def create_classifier_model(clf):
     Makes a pipeline from the clf param and a MinMaxScaler
 
     '''
-    numeric_cols = ['numberOfConversations', 'wifiChanges',
-                    'silenceLevel', 'voiceLevel', 'noiseLevel',
-                    'hourSine', 'hourCosine',
-                    'remainingminutes', 'pastminutes',
-                    'distanceTraveled', 'locationVariance']
+    
     transformer = ColumnTransformer([('scale', MinMaxScaler(), numeric_cols)],
                                     remainder='passthrough')
     return make_pipeline(transformer, clf)
