@@ -4,18 +4,15 @@ from sklearn.preprocessing import StandardScaler
 from preprocessing.datasets import get_lagged_dataset
 
 
-def split_x_y(data, model_type):
+def split_x_y(data):
     '''
     [for regression]
-    Returns x and y for a lagged dataset, where 'y' is the column named 'slevel(t)', that is, the sedentary level of the present
+    Returns x and y for a lagged dataset, where 'y' is the column named 'slevel' or 'sclass', that is, the sedentary level of the present
     '''
-    if model_type=='classification':
-        target_feature = 'sclass'
-    else:
-        target_feature = 'slevel'
+    data = data.values.astype('float64')
+    x = data[:, :-1]
+    y = data[:, -1]
 
-    x = data.iloc[:, :-1]
-    y = data.iloc[:, -1]
     return x, y
 
 def get_train_test_data(model_type,  nb_lags=1, period=1, gran='1h', user=-1, standarize=True):
@@ -36,19 +33,6 @@ def get_train_test_data(model_type,  nb_lags=1, period=1, gran='1h', user=-1, st
         y_train = get_not_user_data(y, user)
     x_train, y_train = x_train.values.astype("float32"), y_train.values.astype("float32")
     x_test, y_test = x_test.values.astype("float32"), y_test.values.astype("float32")
-    if standarize:
-        numeric_cols = ['stationaryLevel', 'walkingLevel', 'runningLevel',
-                        'numberOfConversations', 'wifiChanges',
-                        'silenceLevel', 'voiceLevel', 'noiseLevel',
-                        'hourSine', 'hourCosine',
-                        'remainingminutes', 'pastminutes',
-                        'locationVariance']
-        to_standarize = [col + '(t-{0})'.format(lag) for lag in range(1, nb_lags + 1) for col in numeric_cols]
-        # get_loc gets the number of a column based on its name
-        to_standarize = [data.columns.get_loc(c) for c in to_standarize]
-        ss = StandardScaler()
-        x_train[:, to_standarize] = ss.fit_transform(x_train[:, to_standarize])
-        x_test[:, to_standarize] = ss.transform(x_test[:, to_standarize])
 
     return x_train, y_train, x_test, y_test
 
