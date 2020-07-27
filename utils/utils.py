@@ -28,10 +28,7 @@ def get_not_user_data(data, userId):
     :return: all the data except that of the user specidied
 
     """
-    try:
-        return data.loc[data.index.get_level_values(0) != userId].copy()
-    except KeyError:
-        print('El usuario ', userId, ' no existe.')
+    return data.loc[data.index.get_level_values(0) != userId].copy()
 
 
 def create_classifier_model(clf):
