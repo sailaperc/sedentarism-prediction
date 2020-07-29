@@ -2,11 +2,11 @@ from keras.wrappers.scikit_learn import KerasClassifier
 import numpy as np
 from pympler.tracker import SummaryTracker
 from pympler import summary, muppy
-from keras.models import Sequential
-from keras.layers import Dense, BatchNormalization, Activation
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, BatchNormalization, Activation
 from sklearn.linear_model import LogisticRegression
 from preprocessing.datasets import get_lagged_dataset
-from models.personal_impersonal import per_user, live_one_out
+from experiments.personal_impersonal import per_user, live_one_out
 import time
 from utils.utils import file_exists
 import random

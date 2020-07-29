@@ -8,6 +8,7 @@ np.random.seed(1337) # for reproducibility
 
 pd.options.mode.chained_assignment = None
 
+
 def get_architecture(n):
     model = Sequential()
     if n == 1:
@@ -25,7 +26,7 @@ def get_architecture(n):
                              num_classes=0,
                              nb_filters=8,
                              kernel_size=1,
-                             dilations=[1,2,4],
+                             dilations=[1, 2, 4],
                              # dilations=[2 ** i for i in range(2, 5)],
                              nb_stacks=1,
                              max_len=time_lags,
@@ -33,15 +34,17 @@ def get_architecture(n):
                              regression=True,
                              dropout_rate=0.6)
     elif n == 3:
-        model.add(Conv1D(32, 2, activation='relu', padding='causal', input_shape=input_shape))
+        model.add(Conv1D(32, 2, activation='relu',
+                         padding='causal', input_shape=input_shape))
         model.add(Dropout(0.7))
         model.add(Flatten())
         model.add(Dense(1, activation='linear'))
         model.compile(loss=metric,
                       optimizer='adam',
                       )
-    elif n==4:
-        model.add(Dense(64, input_dim=number_of_features*time_lags, kernel_initializer='normal', activation='relu'))
+    elif n == 4:
+        model.add(Dense(64, input_dim=number_of_features*time_lags,
+                        kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.4))
         model.add(Dense(32, kernel_initializer='normal', activation='relu'))
         model.add(Dropout(.4))
