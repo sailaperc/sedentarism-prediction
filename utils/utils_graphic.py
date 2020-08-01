@@ -472,19 +472,19 @@ def plot_by_month(user):
     plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
     plt.show()
 
-def plot_user_selection():
+def plot_user_selection(k):
     df = get_dataset()
-    d = df.groupby(level=0)['slevel'].agg(['count','mean', 'std'])
+    d = df.groupby(level=0)['slevel'].agg(['count','mean','std'])
     #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
 
-    nb_kmean = 3
+    nb_kmean = k
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
 
 
     y = 'Grupo ' + pd.Series(kmeans.predict(d).astype('str'))
     closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
     for i in closest:
-        y[i] = 'Selec'
+        y[i] = 'Seleccionado'
 
 
     df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns = d.columns)
@@ -501,9 +501,27 @@ def plot_user_selection():
     # d.loc[d['y']=='Selec','colors'] = 'k'
     #colors = list(d.colors)
     d.columns = ['Cantidad buckets', 'Promedio MET', 'Std MET', 'Grupo']
-    ax = sns.relplot(x='Cantidad buckets', y='Promedio MET', hue='Grupo', size='Std MET',
-                        sizes=(50,350), 
-                    alpha=.6, data=d)
+    g = sns.relplot(x='Cantidad buckets',
+                        y='Promedio MET',
+                        hue='Grupo', 
+                        size='Std MET',
+                        sizes=(50, 350),
+                        alpha=.6, 
+                        data=d)
+
+    # array con userid cantbuckets y mean met de cada usuario seleccionado
+    to_annotate = d[(y=='Seleccionado').values].reset_index(drop=False).iloc[:,:3].values
+    style = dict(size=10, color='black')
+
+    for i in range(to_annotate.shape[0]):
+        g.ax.annotate(int(to_annotate[i, 0]),
+                      xy=(to_annotate[i, 1],
+                          to_annotate[i, 2]),
+                      ha='center',
+                      va='center',
+                      **style)
+
+    plt.show()
 
 
 def plot_sin_cos_transformation_proof():
