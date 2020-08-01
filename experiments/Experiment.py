@@ -6,11 +6,11 @@ from preprocessing.model_ready import split_x_y
 from utils.utils import get_user_data, get_not_user_data
 from utils.utils import get_granularity_from_minutes
 import pickle as pkl
-from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-import time 
-from sklearn.metrics import mean_squared_error, f1_score
+import time
+from sklearn.metrics import mean_squared_error, auc
 from utils.utils import file_exists
+
 
 class Experiment(ABC):
     def __init__(self, model, model_type, included_data, user, nb_lags, period, nb_min, need_3d_input):
@@ -27,9 +27,10 @@ class Experiment(ABC):
         self.experiment_data = {}
         self.train_data = None
         self.test_data = None
-        self.pipeline = None
-        if self.task_type=='classification':
-            self.scoring_func = f1_score
+        self.gran = get_granularity_from_minutes(self.nb_min)
+
+        if self.task_type == 'classification':
+            self.scoring_func = auc
         else:
             self.scoring_func = mean_squared_error
 
@@ -63,7 +64,7 @@ class Experiment(ABC):
             yield X_train, y_train, X_test, y_test
 
     def prepare_data(self):
-        self.dataset = get_lagged_dataset(model_type=self.model_type,
+        self.dataset = get_lagged_dataset(model_type=self.task_type,
                                           included_data=self.included_data,
                                           user=self.user,
                                           nb_lags=self.nb_lags,
@@ -71,46 +72,70 @@ class Experiment(ABC):
                                           nb_min=self.nb_min)
 
     def save(self):
-        self.gran = get_granularity_from_minutes(self.nb_min)
         experiment_file = open(self.filename, 'wb')
         pkl.dump(self.experiment_data, experiment_file)
         experiment_file.close()
+        print(f'Saved experiment in {self.filename}')
+
+    def normalize(self, X_train, X_test):
+        ss = StandardScaler()
+        X_train = ss.fit_transform(X_train)
+        X_test = ss.transform(X_test)
+        del ss
+        return X_train, X_test
 
     def run(self):
-        exp_name = f'{self.task_type}_{self.included_data}_gran{self.gran}_period{self.period}_lags{self.nb_lags}'
+        print('*** ' * 10)
+        
+        exp_name = f'{self.task_type}_{self.included_data}_gran{self.gran}_period{self.period}_lags{self.nb_lags}_model-{self.model.name}'
+
         self.filename = f'pkl/experiments/{exp_name}.pkl'
 
-        if ~file_exists(exp_name):
+        if not file_exists(self.filename):
             print(f'Beginning experiment: ')
             print(exp_name)
             self.prepare_data()
             self.experiment_data['scores'] = []
+            self.experiment_data['time_to_train'] = []
+            self.experiment_data['nb_paramas'] = self.model.count_params()
             for split_data in self.time_series_split(self.train_data, self.test_data, self.validation_splits):
+                
                 X_train, y_train, X_test, y_test = split_data
+                X_train, X_test = self.normalize(X_train, X_test) 
+
                 if self.need_3d_input:
-                    X_train = X_train.reshape(X_train.shape[0], self.nb_lags, X_train.shape[0]/self.nb_lags)
-                    X_test = X_test.reshape(X_test.shape[0], self.nb_lags, X_test.shape[0]/self.nb_lags)
+                    X_train = X_train.reshape(
+                        X_train.shape[0], self.nb_lags, X_train.shape[0]/self.nb_lags)
+                    X_test = X_test.reshape(
+                        X_test.shape[0], self.nb_lags, X_test.shape[0]/self.nb_lags)
 
                 start = time.time()
-                self.pipeline.fit(X_train, y_train)
+                self.model.fit(X_train, y_train)
                 end = time.time()
                 total = round((end - start) / 60, 3)
-                self.experiment_data['time_to_train'] = total
-
-                self.experiment_data['nb_paramas'] = model.count_params()
-
-                y_pred = self.pipeline.predict(X_test)
+                self.experiment_data['time_to_train'].append(total)
+                y_pred = self.model.predict(X_test)
+                if self.task_type=='classification':
+                    y_pred = (y_pred > 0.5) * 1.0
+                
+                print(y_pred.shape, y_test.shape)
+                
                 score = self.scoring_func(y_test, y_pred)
                 self.experiment_data['scores'].append(score)
             print(f'Finishing experiment:  ')
-            print('*' * 10)
             self.save()
-        else: 
+        else:
             print('Experiment already done...passing')
             print(exp_name)
-            print('*' * 10)
+        
+        print('*** ' * 10)
 
 
+    def get_experiment_data(self):
+        return self.experiment_data
+
+    def get_results(self):
+        return self.experiment_data['scores']
 
 class PersonalExperiment(Experiment):
 
@@ -118,10 +143,7 @@ class PersonalExperiment(Experiment):
         super().prepare_data()
         self.train_data = get_user_data(self.dataset, self.user)
         self.test_data = get_user_data(self.dataset, self.user)
-        self.pipeline = Pipeline(
-            [('scaler', StandardScaler()), ('model', self.model)])
 
-    
 
 class ImpersonalExperiment(Experiment):
     def prepare_data(self):
