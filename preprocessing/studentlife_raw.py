@@ -66,7 +66,7 @@ def get_studentlife_dataset(nb_min):
         return data.most_common(1)[0][0]
 
     freq = get_granularity_from_minutes(nb_min)
-        
+    print(f'Granularaity is {freq}')    
     filename = f'pkl/sedentarismdata_gran{freq}.pkl'
     if not file_exists(filename):
         print(f'{filename} does not exist. This may take a while...')
@@ -76,7 +76,9 @@ def get_studentlife_dataset(nb_min):
         ######################################################################
         # TSD
         ######################################################################      
-          
+        print('* ' * 10)
+        print('Generating TSD features')
+        print('* ' * 10)
         # prepare activity data
         sdata = get_sensor_data('activity')
         sdata.columns = ['time', 'activityId', 'userId']
@@ -109,7 +111,7 @@ def get_studentlife_dataset(nb_min):
         # activitymajor
         s['activitymajor'] = sdata.groupby(['userId', 'time'])['activityId'].apply(most_common).astype('object')
         #s.dropna(how='all', inplace=True) #here all or ... is the same as if a columns is nan the other too
-
+        print('activity features generated')
 
         hour = s.index.get_level_values('time').hour
         hours_in_day = 24
@@ -133,6 +135,7 @@ def get_studentlife_dataset(nb_min):
 
         s['is_weekend'] = ((s.index.get_level_values(1).dayofweek==0) | \
             (s.index.get_level_values(1).dayofweek==6))
+        print('temporal features generated')
 
 
         # prepare audio data
@@ -155,6 +158,7 @@ def get_studentlife_dataset(nb_min):
         #s.loc[s['audiomajor'].isnull(), 'audiomajor'].groupby('userId').size()
         s.loc[:, 'audio_major'].fillna(method='ffill', axis=0, inplace=True) #suponiendo que se deja de grabar cuando no hay ruido
         s.loc[:,'audio_major'] = s.audio_major.astype('object')    
+        print('audio features generated')
 
 
         # latitude and longitude mean and std
@@ -187,6 +191,7 @@ def get_studentlife_dataset(nb_min):
             groupby(level=0).fillna(method='bfill', axis=0)
         for col in ['location_variance', 'speed_mean', 'speed_variance','total_distance']:
             s.loc[:, col].fillna(0, axis=0, inplace=True) # if it is NaN I suppose the user did not move and so std=0
+        print('gps features generated')
 
         # hay datos sobre los wifi mas cercano y ademas sobre los que el usuario estuvo
         # dentro del lugar dnd estaba el wifi,
@@ -213,12 +218,15 @@ def get_studentlife_dataset(nb_min):
         # a = wifidataIn.groupby(['userId', 'time'])['location']
         # wifidataNear = wfidata.loc[wifidata['location'].str.startswith('near')]
 
+        print('wifi features generated')
 
 
         ######################################################################
         # TSI
         ######################################################################
-        
+        print('* ' * 10)
+        print('Generating TSI features')
+        print('* ' * 10)
         def add_interval_features(s, df, col, with_number=False):
                     
             def fill_by_interval_percentage(df):
@@ -277,27 +285,23 @@ def get_studentlife_dataset(nb_min):
         # is_charging
         chargedata = get_sensor_data('phonecharge')
         s = add_interval_features(s, chargedata, 'is_charging')
+        print('charge features generated')
 
         # isLocked
         lockeddata = get_sensor_data('phonelock')
         s = add_interval_features(s, lockeddata, 'is_locked')
+        print('phone lock features generated')
         
         # isInDark
         darkdata = get_sensor_data('dark')
         s = add_interval_features(s, darkdata, 'is_in_dark')
+        print('dark data features generated')
 
         # prepare conversation data
         conversationData = get_sensor_data('conversation')
         conversationData.columns = ['start', 'end', 'userId']
         s = add_interval_features(s, conversationData, 'is_in_conversation', with_number=True)
-
-        # calendardata = get_sensor_data('calendar')
-        # calendardata['time'] = pd.to_datetime(calendardata['DATE'] + ' ' + calendardata['TIME'])
-        # calendardata['time'] = calendardata['time'].dt.floor(freq)
-        # calendardata = calendardata.set_index(['userId', 'time'])
-
-        # s['hasCalendarEvent'] = False
-        # s.loc[s.index & calendardata.index, 'hasCalendarEvent'] = True
+        print('conversation features generated')
 
         s.to_pickle(filename)
         print('StudentLife feature generation finished.')
