@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 from utils.utils import get_user_data
-from preprocessing.datasets import get_dataset
+from preprocessing.datasets import get_clean_dataset
 from preprocessing.various import get_activity_levels, addSedentaryLevel
 import pandas as pd
 import seaborn as sns
@@ -15,6 +15,7 @@ locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 sns.set_style("whitegrid")
 # to see what rcParams has changed with importing sns
 # [(k,p[k], p_changed[k]) for k in p if p[k]!=p_changed[k]]
+
 
 def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
     '''
@@ -30,10 +31,10 @@ def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
 
     title = 'Actividad por tipo a lo largo del tiempo'
     if df is None:
-        df = get_dataset(delete_inconcitencies=False, from_disc=False)
+        df = get_clean_dataset(delete_inconcitencies=False, from_disc=False)
 
     data = get_activity_levels(get_user_data(df, user))
-    
+
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
     print(data.shape)
@@ -41,15 +42,14 @@ def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     date_range = pd.date_range(mindate, maxdate, freq='h', closed='left')
     none_dates = date_range.difference(true_date_range)
     print('Faltan {0} buckets!'.format(len(none_dates)))
-    
-    xlabels = mdates.date2num(true_date_range)
 
+    xlabels = mdates.date2num(true_date_range)
 
     r = data['walkingLevel'].values + data['runningLevel'].values
     w = data['walkingLevel'].values
 
     plt.close()
-    fig = plt.figure(figsize=(15,3))
+    fig = plt.figure(figsize=(15, 3))
     ax = fig.add_subplot(111)
 
     for date in none_dates:
@@ -60,9 +60,11 @@ def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 
     #ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Walking')
     #ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Running')
     #ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Stationary')
-    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
+    ax.fill_between(xlabels, w, 0, facecolor='yellow',
+                    alpha=1, label='Caminando')
     ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
-    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+    ax.fill_between(xlabels, r, 1, facecolor='black',
+                    alpha=.4, label='Estacionario')
     #ax.format_xdata = mdates.AutoDateFormatter()
     ax.set_ylim(0, 1)
     ax.set_xlim(xlabels[0], xlabels[-1])
@@ -91,33 +93,30 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
     plt.rcParams['ytick.left'] = True
     title = f'Actividad del usuario {user}'
     if df is None:
-        df = get_dataset(delete_inconcitencies=False, from_disc=False)
+        df = get_clean_dataset(delete_inconcitencies=False, from_disc=False)
 
     data = get_activity_levels(get_user_data(df, user))
-    
+
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
     true_date_range = data.index.get_level_values(1)
     date_range = pd.date_range(mindate, maxdate, freq='h', closed='left')
     none_dates = date_range.difference(true_date_range)
     print('Faltan {0} buckets!'.format(len(none_dates)))
-    
-    xlabels = mdates.date2num(true_date_range)
 
+    xlabels = mdates.date2num(true_date_range)
 
     r = data['walkingLevel'].values + data['runningLevel'].values
     w = data['walkingLevel'].values
 
     plt.close()
-    fig, (ax2, ax) = plt.subplots(2, 1, figsize=(15,6), sharex='all')
+    fig, (ax2, ax) = plt.subplots(2, 1, figsize=(15, 6), sharex='all')
     fig.suptitle(title, fontsize=16)
-
 
     ax.xaxis.set_major_locator(mdates.DayLocator())
     ax.xaxis.set_major_formatter(mdates.DateFormatter('%A'))
     ax.xaxis.set_minor_locator(mdates.HourLocator())
     ax.yaxis.set_major_locator(plt.MultipleLocator(0.2))
-
 
     for date in none_dates:
         ax.axvline(mdates.date2num(date))
@@ -125,11 +124,9 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
 
     ax2.axhline(1.5, xlabels[0], xlabels[-1], color='r')
 
-
     ax.set_ylim(0, 1)
-    ax2.set_ylim(1.3,8.5)
+    ax2.set_ylim(1.3, 8.5)
     ax.set_xlim(xlabels[0], xlabels[-1])
-
 
     ax.set_ylabel(f'% de actividad por tipo')
     ax.set_xlabel('Tiempo')
@@ -139,16 +136,18 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
 
     data = data.loc[(data.index.get_level_values(1) >= mindate) &
                     (data.index.get_level_values(1) < maxdate)]
-    
+
     for x in [ax, ax2]:
         x.autoscale_view()
         x.grid(True)
 
     fig.autofmt_xdate()
 
-    ax.fill_between(xlabels, w, 0, facecolor='yellow', alpha=1, label='Caminando')
+    ax.fill_between(xlabels, w, 0, facecolor='yellow',
+                    alpha=1, label='Caminando')
     ax.fill_between(xlabels, w, r, facecolor='red', alpha=1, label='Corriendo')
-    ax.fill_between(xlabels, r, 1, facecolor='black', alpha=.4, label='Estacionario')
+    ax.fill_between(xlabels, r, 1, facecolor='black',
+                    alpha=.4, label='Estacionario')
     ax.legend(loc='upper right')
     ax2.plot(xlabels, data.values)
 
@@ -156,12 +155,13 @@ def plot_user_activity_and_met(user, mindate='2013-03-27 04:00:00', maxdate='201
 
 
 def plot_met_statistics():
-    
-    df = get_dataset(delete_inconcitencies=False, from_disc=False)
-    df = df.groupby(level=0)['slevel'].agg(['mean','std']).sort_values('mean').reset_index()
+
+    df = get_clean_dataset(delete_inconcitencies=False, from_disc=False)
+    df = df.groupby(level=0)['slevel'].agg(
+        ['mean', 'std']).sort_values('mean').reset_index()
 
     plt.close()
-    fig, (ax,ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
+    fig, (ax, ax2) = plt.subplots(2, 1, figsize=(8, 6), sharex='all')
     sns.barplot(x="userId", y="mean", data=df, ax=ax, order=list(df.userId),
                 palette=sns.color_palette("Paired", 10))
     plt.xticks(rotation='vertical')
@@ -177,20 +177,20 @@ def plot_met_statistics():
 
 
 def plot_buckets_per_user():
-    df = get_dataset(delete_inconcitencies=False, from_disc=False)
-    df_with_nulls = get_dataset(dropna=False, delete_inconcitencies=False, from_disc=False)
+    df = get_clean_dataset(delete_inconcitencies=False, from_disc=False)
+    df_with_nulls = get_clean_dataset(
+        dropna=False, delete_inconcitencies=False, from_disc=False)
     plt.figure(figsize=(10, 6), dpi=80, facecolor='w', edgecolor='k')
     plt.grid(axis='x')
     d = df.groupby(level=0).size().to_frame('disp')
     d2 = df_with_nulls.isnull().any(axis=1).groupby(level=0).sum().to_frame('drop')
-    a = pd.concat([d,d2], axis=1).sort_values(by='disp')
+    a = pd.concat([d, d2], axis=1).sort_values(by='disp')
 
     disp = a['disp'].values
     drop = a['drop'].values
 
-    sticks = a.index.values 
+    sticks = a.index.values
     ind = np.arange(len(sticks))
-
 
     p1 = plt.bar(ind, disp,)
     p2 = plt.bar(ind, drop, bottom=disp)
@@ -204,7 +204,7 @@ def plot_buckets_per_user():
 
 def plot_met_distribution(df=None, user=-1, log_transform=False):
     if df is None:
-        df = get_dataset()
+        df = get_clean_dataset()
     if user >= 0:
         df = get_user_data(df, user)
     data = df.slevel
@@ -212,7 +212,7 @@ def plot_met_distribution(df=None, user=-1, log_transform=False):
         data = np.log1p(data)
     sns.distplot(data, hist=True, kde=False)
     title = 'Histograma sobre el nivel de MET'
-    if user>0:
+    if user > 0:
         title += f' del usuario {user}'
     plt.title(title)
     plt.xlabel('Nivel de MET')
@@ -228,29 +228,32 @@ def plot_heatmap(metric, user=-1):
     The metric can be 'mean' or 'std'
 
     '''
-    df = get_dataset()
+    df = get_clean_dataset()
     plt.close()
 
-    fig, ax = plt.subplots(figsize=(6,4))
+    fig, ax = plt.subplots(figsize=(6, 4))
 
     if user >= 0:
         df = get_user_data(df, user)
 
-    df = df.loc[:,'slevel'].to_frame()
+    df = df.loc[:, 'slevel'].to_frame()
     df['hourofday'] = df.index.get_level_values(1).strftime('%H:00')
     df['dayofweek'] = df.index.get_level_values(1).strftime('%w')
-    df['dayofweek_name'] = df.index.get_level_values(1).strftime('%A').str.title()
-    data = df.groupby(['dayofweek', 'dayofweek_name', 'hourofday'])['slevel'].agg(['mean', 'std']).reset_index().sort_values('dayofweek')
-    re_order = pd.DataFrame(data.dayofweek.drop_duplicates().values, data.dayofweek_name.drop_duplicates().values)
+    df['dayofweek_name'] = df.index.get_level_values(
+        1).strftime('%A').str.title()
+    data = df.groupby(['dayofweek', 'dayofweek_name', 'hourofday'])['slevel'].agg(
+        ['mean', 'std']).reset_index().sort_values('dayofweek')
+    re_order = pd.DataFrame(data.dayofweek.drop_duplicates(
+    ).values, data.dayofweek_name.drop_duplicates().values)
     data = data.pivot(index='dayofweek_name', columns='hourofday')[metric]
     data = data.reindex(re_order.index)
     if metric == 'mean':
-        sns.heatmap(data, vmin=1.3,linewidths=.03, cmap='RdBu_r')
+        sns.heatmap(data, vmin=1.3, linewidths=.03, cmap='RdBu_r')
         m = 'Promedio'
     elif metric == 'std':
-        sns.heatmap(data, vmin=0,linewidths=.03, cmap='autumn_r')
+        sns.heatmap(data, vmin=0, linewidths=.03, cmap='autumn_r')
         m = 'Desviación estándar'
-    if user>0:
+    if user > 0:
         plt.title(f'{m} de la actividad del usuario {user}')
     else:
         plt.title(f'{m} de la actividad de todos los usuarios')
@@ -266,13 +269,14 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
 
     '''
 
-    df = get_dataset()
+    df = get_clean_dataset()
     metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    days = ['Lunes', 'Martes', 'Miércoles',
+            'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
     fig, axes = plt.subplots(
         nrows=1, ncols=4,
@@ -289,7 +293,8 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
         userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
         userdata = userdata.mean()
         userdata = userdata.reset_index()
-        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
+        userdata = userdata.pivot(
+            index='dayofweek', values='slevel', columns='hourofday')
         sns.heatmap(userdata,
                     ax=ax,
                     vmin=1.3, vmax=2,
@@ -314,7 +319,8 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
         ax.tick_params(axis='x', which='major', labelsize=8)
 
     # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
-    fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
+    fig.text(0, .5, 'Día de la semana', va='center',
+             rotation='vertical', fontsize=14)
 
     # plt.xlabel('Day of week', fontsize=18, labelpad=23)
     # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
@@ -335,7 +341,8 @@ def plot_heatmaps_std(users=[50, 31, 4]):
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+    days = ['Lunes', 'Martes', 'Miércoles',
+            'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
     fig, axes = plt.subplots(
         nrows=1, ncols=4,
@@ -353,7 +360,8 @@ def plot_heatmaps_std(users=[50, 31, 4]):
 
         userdata = userdata.std()
         userdata = userdata.reset_index()
-        userdata = userdata.pivot(index='dayofweek', values='slevel', columns='hourofday')
+        userdata = userdata.pivot(
+            index='dayofweek', values='slevel', columns='hourofday')
 
         sns.heatmap(userdata,
                     ax=ax,
@@ -379,7 +387,8 @@ def plot_heatmaps_std(users=[50, 31, 4]):
         ax.tick_params(axis='x', which='major', labelsize=8)
 
     # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
-    fig.text(0, .5, 'Día de la semana', va='center', rotation='vertical', fontsize=14)
+    fig.text(0, .5, 'Día de la semana', va='center',
+             rotation='vertical', fontsize=14)
 
     # plt.xlabel('Day of week', fontsize=18, labelpad=23)
     # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
@@ -413,13 +422,15 @@ def plot_by_week(user):
     week = d['week'].unique()
     # Prep Colors
     np.random.seed(20)
-    mycolors = np.random.choice(list(colors.CSS4_COLORS.keys()), len(week), replace=False)
+    mycolors = np.random.choice(
+        list(colors.CSS4_COLORS.keys()), len(week), replace=False)
     # Draw Plot
     plt.close('all')
     fig = plt.figure(figsize=(16, 12), dpi=80)
     ax = fig.add_subplot(111)
     for i, m in enumerate(week):
-        ax.plot('numdate', 'slevel', data=d.loc[d.week == m, :], color=mycolors[i], label=m)
+        ax.plot('numdate', 'slevel',
+                data=d.loc[d.week == m, :], color=mycolors[i], label=m)
     # Decoration
     ax.grid(True)
     ax.xaxis.set_major_locator(mdates.DayLocator())
@@ -429,7 +440,8 @@ def plot_by_week(user):
     plt.gca().set(ylabel='$MET value$', xlabel='$Day$')
     plt.yticks(fontsize=12, alpha=.7)
     ax.legend(loc='upper right')
-    plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
+    plt.title("Student {0} energy expenditure along the season".format(
+        user), fontsize=20)
     plt.show()
 
 
@@ -448,7 +460,8 @@ def plot_by_month(user):
     # Prepare data
     d['month'] = [t.strftime('%b') for t in d.index]
     d['day'] = [t.strftime('%d') for t in d.index]
-    d['date'] = pd.to_datetime([t.strftime('2013-03-%d %H:%M:%S.0000') for t in d.index])
+    d['date'] = pd.to_datetime(
+        [t.strftime('2013-03-%d %H:%M:%S.0000') for t in d.index])
     d['numdate'] = mdates.date2num(d.date)
     month = d['month'].unique()
     # Prep Colors
@@ -460,7 +473,8 @@ def plot_by_month(user):
     fig = plt.figure(figsize=(16, 12), dpi=80)
     ax = fig.add_subplot(111)
     for i, m in enumerate(month):
-        ax.plot('numdate', 'slevel', data=d.loc[d.month == m, :], color=mycolors[i], label=m)
+        ax.plot('numdate', 'slevel',
+                data=d.loc[d.month == m, :], color=mycolors[i], label=m)
     # Decoration
     ax.grid(True)
     ax.xaxis.set_major_locator(mdates.DayLocator())
@@ -469,48 +483,49 @@ def plot_by_month(user):
     plt.gca().set(ylabel='$MET value$', xlabel='$Day$')
     plt.yticks(fontsize=12, alpha=.7)
     ax.legend(loc='upper right')
-    plt.title("Student {0} energy expenditure along the season".format(user), fontsize=20)
+    plt.title("Student {0} energy expenditure along the season".format(
+        user), fontsize=20)
     plt.show()
 
+
 def plot_user_selection(k):
-    df = get_dataset()
-    d = df.groupby(level=0)['slevel'].agg(['count','mean','std'])
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
     #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
 
     nb_kmean = k
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
-
 
     y = 'Grupo ' + pd.Series(kmeans.predict(d).astype('str'))
     closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
     for i in closest:
         y[i] = 'Seleccionado'
 
-
-    df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns = d.columns)
+    df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns=d.columns)
     #d = pd.concat([d,df_kmeans], axis=0)
 
     #y = y.append(pd.Series(['Centroid'] * nb_kmean), ignore_index=True)
     y.index = d.index
     y = y.to_frame('y')
-    d = pd.concat([d,y], axis=1)
+    d = pd.concat([d, y], axis=1)
     # d['colors'] = 'r'
-    # d.loc[d['y']=='Grupo 1','colors'] = 'b'  
-    # d.loc[d['y']=='Grupo 2','colors'] = 'o'  
-    # d.loc[d['y']=='Centroid','colors'] = 'c'  
+    # d.loc[d['y']=='Grupo 1','colors'] = 'b'
+    # d.loc[d['y']=='Grupo 2','colors'] = 'o'
+    # d.loc[d['y']=='Centroid','colors'] = 'c'
     # d.loc[d['y']=='Selec','colors'] = 'k'
     #colors = list(d.colors)
     d.columns = ['Cantidad buckets', 'Promedio MET', 'Std MET', 'Grupo']
     g = sns.relplot(x='Cantidad buckets',
-                        y='Promedio MET',
-                        hue='Grupo', 
-                        size='Std MET',
-                        sizes=(50, 350),
-                        alpha=.6, 
-                        data=d)
+                    y='Promedio MET',
+                    hue='Grupo',
+                    size='Std MET',
+                    sizes=(50, 350),
+                    alpha=.6,
+                    data=d)
 
     # array con userid cantbuckets y mean met de cada usuario seleccionado
-    to_annotate = d[(y=='Seleccionado').values].reset_index(drop=False).iloc[:,:3].values
+    to_annotate = d[(y == 'Seleccionado').values].reset_index(
+        drop=False).iloc[:, :3].values
     style = dict(size=10, color='black')
 
     for i in range(to_annotate.shape[0]):
@@ -546,8 +561,7 @@ def plot_sin_cos_transformation_proof():
 
     df.head()
 
-
     df['Coseno'].plot()
 
-    df.sample(75).plot.scatter('Seno','Coseno', title= 'Transformaciones trigonométricas').set_aspect('equal')
-
+    df.sample(75).plot.scatter('Seno', 'Coseno',
+                               title='Transformaciones trigonométricas').set_aspect('equal')
