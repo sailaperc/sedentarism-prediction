@@ -223,6 +223,35 @@ def plot_portion_of_activity(only_unknowns=True):
     plt.show()
 
 
+def numerical_data_distribution():
+    # %%
+    df = get_clean_dataset()
+    # %%
+    df.info()
+    # %%
+    df = get_lagged_dataset()
+    # %%
+    df.info()
+    # %%
+    df_num = df.select_dtypes(exclude='object')
+    #%%
+    df.shape
+
+    # %%
+    df.hist(figsize=(16, 20), bins=50, xlabelsize=8, ylabelsize=8)
+    # %%
+    df['location_mean(t-1)']
+
+    #%%
+    df_num_corr = df_num.corr()['slevel'][:-1] # -1 because the latest row is SalePrice
+    golden_features_list = df_num_corr.sort_values(ascending=False)
+    print("There is {} strongly correlated values with SalePrice:\n{}".format(len(golden_features_list), golden_features_list))
+    # %%
+    for i in range(0, len(df_num.columns), 5):
+        sns.pairplot(data=df_num,
+                    x_vars=df_num.columns[i:i+5],
+                    y_vars=['slevel'])
+
 
 
 
