@@ -4,7 +4,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from preprocessing.studentlife_raw import get_sensor_data, get_studentlife_dataset
-from preprocessing.datasets import get_dataset
+from preprocessing.datasets import get_clean_dataset
 sns.set_style("whitegrid")
 
 def plot_activity_logs_per_user(only_unknowns=True):

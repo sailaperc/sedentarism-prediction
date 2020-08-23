@@ -32,7 +32,6 @@ class Experiment(ABC):
         self.gran = get_granularity_from_minutes(self.nb_min)
 
         self.name = f'{self.task_type}_gran{self.gran}_period{self.period}_lags{self.nb_lags}_model-{model_name}_user{self.user}'
-        self.filename = f'pkl/experiments/{self.name}.pkl'
 
         if self.task_type == 'classification':
             self.scoring_func = roc_auc_score
@@ -45,7 +44,7 @@ class Experiment(ABC):
     def prepare_data(self):
         pass
 
-    def time_series_split(self, n_splits=5):
+    def time_series_split(self):
         min_train = self.train_data.index.get_level_values(1).min()
         min_test = self.test_data.index.get_level_values(1).min()
         max_train = self.train_data.index.get_level_values(1).max()
@@ -53,15 +52,15 @@ class Experiment(ABC):
         min_date = max([min_train, min_test])
         max_date = min([max_train, max_test])
         diff = max_date-min_date
-        n_folds = n_splits + 1
+        n_folds = self.validation_splits + 1
         time_per_fold = diff / n_folds
         split_date = min_date
-        for split_nb in range(n_splits):
+        for split_nb in range(self.validation_splits):
             split_date = split_date + time_per_fold
             train_index = (
                 self.train_data.index.get_level_values(1) <= split_date)
             train_data_split = self.train_data[train_index]
-            if split_nb != n_splits-1:
+            if split_nb != self.validation_splits-1:
                 test_index_may = (
                     self.test_data.index.get_level_values(1) > split_date)
                 test_index_inf = (self.test_data.index.get_level_values(
@@ -91,19 +90,24 @@ class Experiment(ABC):
 
     #def set_model_imput(self):
 
-    def run(self, nb_epochs=64, save=True, with_class_weights=True, verbose=False):
+    def run(self, nb_epochs=64, with_class_weights=True, verbose=False):
         print('*** ' * 10)
+        self.filename = f'pkl/experiments/{self.name}.pkl'
 
         if not file_exists(self.filename):
             print(f'Beginning experiment: ')
-            print(self.name)
+            self.déjà_fait = False
             self.prepare_data()
+            print(self.name)
             self.experiment_data['scores'] = []
             self.experiment_data['time_to_train'] = []
+            i = 1
             for split_data in self.time_series_split():
-                # TODO reset model
+                print('*** ' * 10)
+                print(f'Starting iteration nb {i} of {self.validation_splits}')
+                i += 1
                 X_train, y_train, X_test, y_test = split_data
-                print([x.shape for x in split_data])
+                #print([x.shape for x in split_data])
                 X_train, X_test = self.normalize(X_train, X_test)
 
                 if self.need_3d_input:
@@ -155,13 +159,11 @@ class Experiment(ABC):
 
                 del model
 
-            print(f'Finishing experiment:  ')
-            if save:
-                self.save()
+            print(f'Experiment finished')
         else:
             print('Experiment already done... loading it')
             self.experiment_data = pkl.load(open(self.filename, 'rb'))
-
+            self.déjà_fait = True
         print('*** ' * 10)
 
     def get_experiment_data(self):
@@ -177,6 +179,8 @@ class Experiment(ABC):
 class PersonalExperiment(Experiment):
 
     def prepare_data(self):
+        # TODO pasar a __init__
+        self.name += '_personal' 
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=self.user,
                                           nb_lags=self.nb_lags,
@@ -188,6 +192,7 @@ class PersonalExperiment(Experiment):
 
 class ImpersonalExperiment(Experiment):
     def prepare_data(self):
+        self.name += '_impersonal' 
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=-1,
                                           nb_lags=self.nb_lags,
