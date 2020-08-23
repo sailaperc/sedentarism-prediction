@@ -21,7 +21,6 @@ def get_user_data(data, userId):
     return result
 
 
-
 def get_not_user_data(data, userId):
     """
 
@@ -41,6 +40,7 @@ def create_classifier_model(clf):
                                     remainder='passthrough')
     return make_pipeline(transformer, clf)
 
+
 def file_exists(file):
     return os.path.exists(file)
 
@@ -51,9 +51,4 @@ def get_granularity_from_minutes(nb_min):
     else:
         gran = f'{nb_min}min'
     return gran
-
-
-
-
-
 

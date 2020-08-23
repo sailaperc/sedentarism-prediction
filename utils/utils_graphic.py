@@ -489,6 +489,7 @@ def plot_by_month(user):
 
 
 def plot_user_selection(k):
+    # TODO plot actual centroids
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
     #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
@@ -500,7 +501,7 @@ def plot_user_selection(k):
     closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
     for i in closest:
         y[i] = 'Seleccionado'
-
+    print(closest)
     df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns=d.columns)
     #d = pd.concat([d,df_kmeans], axis=0)
 
@@ -535,6 +536,7 @@ def plot_user_selection(k):
                       ha='center',
                       va='center',
                       **style)
+
 
     plt.show()
 
