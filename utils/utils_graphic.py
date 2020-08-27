@@ -488,12 +488,12 @@ def plot_by_month(user):
     plt.show()
 
 
-def plot_user_selection(k):
+def plot_user_selection(k, min_buckets=0):
     # TODO plot actual centroids
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
     #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
-
+    d = d.loc[d['count']>min_buckets]
     nb_kmean = k
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
 
