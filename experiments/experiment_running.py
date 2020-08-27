@@ -60,20 +60,20 @@ def create_mlp_model_fn(learning_rate, num_dense_nodes, dropout):
 models = {
     'personal': {
         'rnn': {
-            34: (create_rnn_model_fn(-2, 1, 4, 0.7815470221731062), 2**6),
-            32: (create_rnn_model_fn(-2, 1, 6, 0.46731340087392575), 2**4)
+            34: (create_rnn_model_fn(1e-2, 2, 2**6, 0.2587621188847304, 2**6, 0.8), 2**6, 2**3),
+            32: (create_rnn_model_fn(1e-2, 1, 2**2, 0.34434530063418983, 2**6, 0.0), 2**6, 2**4)
         },
         'cnn': {
-            34: (create_cnn_model_fn(), 2**),
-            32: (create_cnn_model_fn(), 2**)
+            34: (create_cnn_model_fn(1e-2, 2**7, 2, 0.5699083979399923, 2**6, 0.10119762716042291), 2**5, 2**3),
+            32: (create_cnn_model_fn(1e-2, 2**8, 1, 0.0, 2**4, 0.8, ), 2**6, 2**6)
         },
         'tcn': {
             34: (create_tcn_model_fn(), 2**),
             32: (create_tcn_model_fn(), 2**)
         },
         'mlp': {
-            34: (create_mlp_model_fn(-2, 4, 0.48791799675843806), 2**6),
-            32: (create_mlp_model_fn(-2, 9, 0.6489600921938838), 2**6)
+            34: (create_mlp_model_fn(-2, 2**9, 0.2839842121499357), 2**4, 2**3),
+            32: (create_mlp_model_fn(-3, 2**7, 0.29014804584108833),2**6, 2**3)
         },
     },
     'impersonal': {
@@ -90,7 +90,7 @@ models = {
             32: (create_tcn_model_fn(), 2**)
         },
         'mlp': {
-            34: (create_mlp_model_fn(), 2**),
+            34: (create_mlp_model_fn(1e-2, 2**5, 0.06986817338556388), 2**6, 2**4),
             32: (create_mlp_model_fn(), 2**)
         },
     }
