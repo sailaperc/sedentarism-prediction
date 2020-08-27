@@ -34,101 +34,72 @@ import math
 dim_learning_rate = Integer(low=-6, high=-2, name='learning_rate')
 dim_num_lstm_layers = Integer(low=1, high=2, name='num_lstm_layers')
 dim_num_lstm_nodes = Integer(low=2, high=9, name='num_lstm_nodes')
-dim_dropout = Real(low=.0, high=.8, name='dropout')
+dim_lstm_dropout = Real(low=.0, high=.8, name='lstm_dropout')
+dim_num_dense_nodes = Integer(low=0, high=6, name='num_dense_nodes')
+dim_dense_dropout = Real(low=.0, high=.8, name='dense_dropout')
 dim_num_epochs = Integer(low=2, high=6, name='num_epochs')
+dim_batch_size = Integer(low=3, high=8, name='batch_size')
 
 dimensions = [dim_learning_rate,
               dim_num_lstm_layers,
               dim_num_lstm_nodes,
-              dim_dropout,
-              dim_num_epochs]
+              dim_lstm_dropout,
+              dim_num_dense_nodes,
+              dim_dense_dropout,
+              dim_num_epochs,
+              dim_batch_size]
 
-default_parameters = [-5, 1, 4, .3, 4]
+default_parameters = [-3, 2, 4, .3, 3, .4, 3, 4]
 
-
-# def log_dir_name(learning_rate,
-#                  num_lstm_layers, num_lstm_nodes, dropout, num_epochs):
-
-#     s = "./logs/lr_{0:.0e}_nodes_{1}_{2}_{3}_{4}/"
-#     log_dir = s.format(learning_rate,
-#                        num_lstm_layers,
-#                        num_lstm_nodes,
-#                        num_epochs,
-#                        dropout
-#                        )
-#     return log_dir
-
-
-def create_model_fn(learning_rate, num_lstm_layers, num_lstm_nodes, dropout):
-    #print(learning_rate, num_lstm_layers, num_lstm_nodes, dropout)
+def create_model_fn(learning_rate, num_lstm_layers, num_lstm_nodes, lstm_dropout, num_dense_nodes, dense_dropout):
     def create_model():
         use_two_layers = num_lstm_layers == 2
 
         model = Sequential(name='rnn')
-        #model.add(InputLayer(input_shape=(input_shape,)))
-
-        name = 'layer_LSTM_{0}'.format(str(2**num_lstm_nodes))
-        model.add(LSTM(2**num_lstm_nodes,
-                    return_sequences=use_two_layers,
-                    name=name))
-        model.add(Dropout(dropout))
+        model.add(LSTM(2**num_lstm_nodes, return_sequences=use_two_layers))
+        model.add(Dropout(lstm_dropout))
 
         if use_two_layers:
             model.add(LSTM(2**(num_lstm_nodes-1), return_sequences=False))
+            model.add(Dropout(lstm_dropout))
+
+        if num_dense_nodes>0:
+            model.add(Dense(2**num_dense_nodes, activation='relu'))
+            model.add(Dropout(dense_dropout))
 
         model.add(Dense(1, activation='linear'))
         optimizer = Adam(lr=learning_rate)
         model.compile(optimizer=optimizer,
                     loss='MSE',
                     metrics=keras.metrics.MSE)
-        #model.summary()
         return model
     return create_model
 
-path_best_model = 'best_model.h5'
 
 best_score = 0.0
 
 
 @use_named_args(dimensions=dimensions)
-def fitness(learning_rate, num_lstm_layers,
-            num_lstm_nodes, dropout, num_epochs):
+def fitness(learning_rate, num_lstm_layers, num_lstm_nodes, lstm_dropout, num_dense_nodes, dense_dropout, num_epochs, batch_size):
 
     num_epochs = 2**num_epochs
+    batch_size = 2**batch_size
     learning_rate = math.pow(10, learning_rate)
 
     print('learning rate: {0:.1e}'.format(learning_rate))
     print('num_lstm_layers: ', num_lstm_layers)
     print('num_lstm_nodes: ', num_lstm_nodes)
+    print('lstm_dropout: ', lstm_dropout)
+    print('num_dense_nodes: ', num_dense_nodes)
+    print('dense_dropout: ', dense_dropout)
     print('num_epochs: ', num_epochs)
-    print('dropout: ', dropout)
+    print('batch_size: ', batch_size)
     print()
 
-    model_fn = create_model_fn(learning_rate=learning_rate,
-                         num_lstm_layers=num_lstm_layers,
-                         num_lstm_nodes=num_lstm_nodes,
-                         dropout=dropout)
+    model_fn = create_model_fn(learning_rate, num_lstm_layers, num_lstm_nodes, lstm_dropout, num_dense_nodes, dense_dropout)
 
-    # log_dir = log_dir_name(learning_rate, num_lstm_layers,
-    #                        2**num_lstm_nodes, num_epochs, dropout)
-
-    # callback_log = TensorBoard(
-    #     log_dir=log_dir,
-    #     histogram_freq=1,
-    #     write_graph=True,
-    #     write_images=True)
-
-    # history = model.fit(x=X_train,
-    #                     y=y_train,
-    #                     epochs=num_epochs,
-    #                     batch_size=128,
-    #                     validation_data=(X_test, y_test),
-    #                     callbacks=[callback_log],
-    #                     verbose=0)
-    # auc = history.history['val_auc'][-1]
-
-    pe = ImpersonalExperiment(model_fn, 'rnn', 'regression', 34, 4, 1, 60, True)
-    pe.run(num_epochs, save=False)
+    pe = PersonalExperiment(model_fn, 'rnn', 'regression', 32, 4, 1, 60, True)
+    pe.run(num_epochs, batch_size)
     score = pe.get_mean_score()
     del pe
     print()
@@ -137,7 +108,6 @@ def fitness(learning_rate, num_lstm_layers,
     global best_score
 
     if score > best_score:
-        #model.save(path_best_model)
         best_score = score
     return score
 
@@ -148,11 +118,8 @@ def fitness(learning_rate, num_lstm_layers,
 search_result = gp_minimize(func=fitness,
                             dimensions=dimensions,
                             acq_func='EI',  # Expected Improvement.
-                            n_calls=15,
-                            x0=default_parameters,
-                            n_random_starts=4,
+                            n_calls=40,
                             verbose=True)
-#%%
 
 print(search_result.fun)
 
@@ -162,11 +129,10 @@ sorted(zip(search_result.func_vals, search_result.x_iters))
 search_result.fun
 
 # personal / rnn / 34
-# [-2, 1, 4, 6, 0.7815470221731062]
+# 0.4719851516477188, [-2, 2, 6, 0.2587621188847304, 6, 0.8, 6, 3]
 # 
 # personal / rnn / 32
-# [-2, 1, 6, 4, 0.46731340087392575]
-# 0.5639699458628711
+# 0.5668932646880547, [-2, 1, 2, 0.34434530063418983, 6, 0.0, 6, 4]
 # impersonal / rnn / 34
 #
 # impersonal / rnn / 32
