@@ -31,7 +31,7 @@ class Experiment(ABC):
         self.test_data = None
         self.gran = get_granularity_from_minutes(self.nb_min)
 
-        self.name = f'{self.task_type}_gran{self.gran}_period{self.period}_lags{self.nb_lags}_model-{model_name}_user{self.user}'
+        self.name = f'_{self.task_type}_gran{self.gran}_period{self.period}_lags{self.nb_lags}_model-{model_name}_user{self.user}'
 
         if self.task_type == 'classification':
             self.scoring_func = roc_auc_score
@@ -90,7 +90,7 @@ class Experiment(ABC):
 
     #def set_model_imput(self):
 
-    def run(self, nb_epochs=64, with_class_weights=True, verbose=False):
+    def run(self, nb_epochs=64, batch_size=64, with_class_weights=True, verbose=False):
         print('*** ' * 10)
         self.filename = f'pkl/experiments/{self.name}.pkl'
 
@@ -133,13 +133,14 @@ class Experiment(ABC):
                 start = time.time()
                 model = self.model_fn()
                 tf.keras.backend.clear_session()
+
                 model.fit(X_train,
                           y_train,
-                          batch_size=64,
+                          batch_size=batch_size,
                           epochs=nb_epochs,
-                          validation_data=(X_test, y_test),
                           #class_weight=class_weight,
                           verbose=0)
+
                 end = time.time()
                 total = round((end - start) / 60, 3)
                 self.experiment_data['time_to_train'].append(total)
