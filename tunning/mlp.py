@@ -29,16 +29,19 @@ from utils.utils import get_user_data
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import math
+
 dim_learning_rate = Integer(low=-6, high=-2,name='learning_rate')
 dim_num_dense_nodes = Integer(low=2, high=9, name='num_dense_nodes')
 dim_dropout = Real(low=.0, high=.8, name='dropout')
 dim_num_epochs = Integer(low=2, high=6, name='num_epochs')
+dim_batch_size = Integer(low=3, high=8, name='batch_size')
 
 dimensions = [dim_learning_rate,
               dim_num_dense_nodes,
               dim_dropout,
-              dim_num_epochs]
-default_parameters = [-5, 4,.3,4]
+              dim_num_epochs,
+              dim_batch_size]
+default_parameters = [-5, 4,.3, 2 ,4]
 
 def create_model(learning_rate, num_dense_nodes, dropout):
 
@@ -60,13 +63,15 @@ def create_model(learning_rate, num_dense_nodes, dropout):
 best_score = 0.0
 
 @use_named_args(dimensions=dimensions)
-def fitness(learning_rate, num_dense_nodes, dropout, num_epochs):
+def fitness(learning_rate, num_dense_nodes, dropout, num_epochs, batch_size):
     print('learning rate: {0:.1e}'.format(learning_rate))
-   # print('num_dense_layers:', num_dense_layers)
+    print('dropout:', dropout)
     print('num_dense_nodes:', num_dense_nodes)
     print('num_epochs: ', num_epochs)
+    print('batch_size: ', batch_size)
     print()
     num_epochs = 2**num_epochs
+    batch_size = 2**batch_size
     learning_rate = math.pow(10,learning_rate)
     
     model_fn = create_model(learning_rate=learning_rate,
@@ -74,8 +79,8 @@ def fitness(learning_rate, num_dense_nodes, dropout, num_epochs):
                          dropout=dropout
                          )
 
-    pe = ImpersonalExperiment(model_fn, 'mlp', 'regression', 34, 4, 1, 60, False)
-    pe.run(num_epochs)
+    pe = PersonalExperiment(model_fn, 'mlp', 'regression', 32, 4, 1, 60, False)
+    pe.run(num_epochs, batch_size)
     score = pe.get_mean_score()
     del pe
     print()
@@ -89,18 +94,15 @@ def fitness(learning_rate, num_dense_nodes, dropout, num_epochs):
 
 
 # %%
-fitness(x=default_parameters)
+#fitness(x=default_parameters)
 
 #%%
 search_result = gp_minimize(func=fitness,
                             dimensions=dimensions,
                             acq_func='EI',  # Expected Improvement.
-                            n_calls=25,
-                            x0=default_parameters,
-                            n_random_starts=4,
+                            n_calls=40,
                             verbose=True)
 
-#%%
 
 print(search_result.fun)
 
@@ -108,9 +110,10 @@ sorted(zip(search_result.func_vals, search_result.x_iters))
 
 #%%
 # personal / mlp / 34
-# [(0.4753597563185455, [-2, 4, 0.48791799675843806, 6]),
+# (0.47701561717439234, [-2, 9, 0.2839842121499357, 4, 3]
 
 # personal / mlp / 32
-# (0.6528186310976319, [-2, 9, 0.6489600921938838, 6])
+# (0.6090751778316554, [-3, 7, 0.29014804584108833, 6, 3]),
 
 # impersonal / mlp / 34
+# 
