@@ -68,7 +68,7 @@ models = {
             32: (create_cnn_model_fn(1e-2, 2**8, 1, 0.0, 2**4, 0.8, ), 2**6, 2**6)
         },
         'tcn': {
-            34: (create_tcn_model_fn(), 2**),
+            34: (create_tcn_model_fn([5, 4, .8, 2, 1, 0, 8, 3]), 2**8, 2**3),
             32: (create_tcn_model_fn(), 2**)
         },
         'mlp': {

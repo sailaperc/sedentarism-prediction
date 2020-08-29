@@ -90,7 +90,7 @@ class Experiment(ABC):
 
     #def set_model_imput(self):
 
-    def run(self, nb_epochs=64, batch_size=64, with_class_weights=True, verbose=False):
+    def run(self, nb_epochs=64, batch_size=64, with_class_weights=True, verbose=0):
         print('*** ' * 10)
         self.filename = f'pkl/experiments/{self.name}.pkl'
 
@@ -148,10 +148,9 @@ class Experiment(ABC):
                 #if self.task_type == 'classification':
                 #    y_pred = (y_pred > 0.5) * 1.0
                 score = self.scoring_func(y_test, y_pred)
-                self.experiment_data['scores'].append(score)
-
-                self.experiment_data['nb_paramas'] = model.count_params()
-                if verbose:
+                self.experiment_data['scores'].append(round(score,3))
+                self.experiment_data['nb_params'] = model.count_params()
+                if verbose>1:
                     print('Shapes for this iteration are: ')
                     print(f'X_train: {X_train.shape}')
                     print(f'X_test: {X_test.shape}')
@@ -159,12 +158,15 @@ class Experiment(ABC):
                     print('#' * 10)
 
                 del model
-
             print(f'Experiment finished')
         else:
             print('Experiment already done... loading it')
             self.experiment_data = pkl.load(open(self.filename, 'rb'))
             self.déjà_fait = True
+        if verbose>0:     
+            print(self.experiment_data['scores'])
+            print(self.experiment_data['nb_params'])
+            print(self.experiment_data['time_to_train'])
         print('*** ' * 10)
 
     def get_experiment_data(self):

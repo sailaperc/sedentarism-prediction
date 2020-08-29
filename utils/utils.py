@@ -16,7 +16,7 @@ def get_user_data(data, userId):
     Get data of a specific user
 
     """
-    result = data.loc[data.index.get_level_values(0) == userId].copy()
+    result = data.loc[data.index.get_level_values(0) == userId]
     assert (result.shape[0]!=0), 'The user does not exist.'
     return result
 
@@ -27,7 +27,7 @@ def get_not_user_data(data, userId):
     :return: all the data except that of the user specidied
 
     """
-    return data.loc[data.index.get_level_values(0) != userId].copy()
+    return data.loc[data.index.get_level_values(0) != userId]
 
 
 def create_classifier_model(clf):
