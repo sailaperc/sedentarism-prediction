@@ -13,7 +13,7 @@ from utils.utils import file_exists
 import tensorflow as tf
 import numpy as np
 from math import sqrt
-
+from keras import backend as K
 
 class Experiment(ABC):
     def __init__(self, model_fn, model_name, task_type, user, nb_lags, period, nb_min, need_3d_input):
@@ -36,9 +36,9 @@ class Experiment(ABC):
         if self.task_type == 'classification':
             self.scoring_func = roc_auc_score
         else:
-            def rmse(x, y):
-                return sqrt(mean_squared_error(x, y))
-            self.scoring_func = rmse
+            #def rmse(x, y):
+                #return sqrt(mean_squared_error(x, y))
+            self.scoring_func = mean_squared_error#rmse
 
     @abstractmethod
     def prepare_data(self):
@@ -103,8 +103,9 @@ class Experiment(ABC):
             self.experiment_data['time_to_train'] = []
             i = 1
             for split_data in self.time_series_split():
-                print('*** ' * 10)
+                
                 print(f'Starting iteration nb {i} of {self.validation_splits}')
+                K.clear_session() #clears tf state like model graph parameters
                 i += 1
                 X_train, y_train, X_test, y_test = split_data
                 #print([x.shape for x in split_data])
@@ -139,24 +140,23 @@ class Experiment(ABC):
                           batch_size=batch_size,
                           epochs=nb_epochs,
                           #class_weight=class_weight,
-                          verbose=0)
-
+                          verbose=(0,2)[verbose>1])
                 end = time.time()
                 total = round((end - start) / 60, 3)
-                self.experiment_data['time_to_train'].append(total)
                 y_pred = model.predict(X_test)
                 #if self.task_type == 'classification':
                 #    y_pred = (y_pred > 0.5) * 1.0
                 score = self.scoring_func(y_test, y_pred)
+
                 self.experiment_data['scores'].append(round(score,3))
                 self.experiment_data['nb_params'] = model.count_params()
+                self.experiment_data['y_test_pred']=(y_train, y_pred)
+                self.experiment_data['time_to_train'].append(total)
                 if verbose>1:
                     print('Shapes for this iteration are: ')
                     print(f'X_train: {X_train.shape}')
                     print(f'X_test: {X_test.shape}')
                     #print(f'Class weights are: {class_weight}')
-                    print('#' * 10)
-
                 del model
             print(f'Experiment finished')
         else:
