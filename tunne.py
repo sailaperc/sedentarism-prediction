@@ -1,5 +1,6 @@
 #%%
 from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
+import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
 import math
@@ -7,119 +8,127 @@ import math
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv1D, Dense, Flatten
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
 from tensorflow.keras.optimizers import Adam
 
-from tcn import TCN
-
 import skopt
-from skopt import gp_minimize
+from skopt import gp_minimize, forest_minimize
 from skopt.space import Real, Categorical, Integer
+from skopt.plots import plot_convergence
+from skopt.plots import plot_objective, plot_evaluations
 from skopt.utils import use_named_args
+from skopt import callbacks
+from skopt.callbacks import CheckpointSaver
+from skopt import load
 
-#from numpy.random import seed
-#seed(1)
+from utils.utils import file_exists
 
-tf.random.set_seed(2)
+seed = 1
+tf.random.set_seed(seed)
 
-dim_num_filters = Integer(low=2, high=6, name='num_filters')
-dim_kernel_size = Integer(low=1, high=4, name='kernel_size')
+
+dim_num_dense_nodes = Integer(low=2, high=9, name='num_dense_nodes')
+dim_num_dense_layers = Integer(low=1, high=8, name='num_dense_layers')
+dim_use_batch_norms = Integer(low=0, high=1, name='use_batch_norm')
 dim_dropout = Real(low=.0, high=.8, name='dropout')
-dim_use_skip_connections = Integer(low=0, high=1, name='use_skip_connections')
-dim_use_batch_norm = Integer(low=0, high=1, name='use_batch_norm')
-dim_num_epochs = Integer(low=2, high=8, name='num_epochs')
-dim_batch_size = Integer(low=3, high=6, name='batch_size')
+dim_num_epochs = Integer(low=2, high=6, name='num_epochs')
+dim_batch_size = Integer(low=3, high=8, name='batch_size')
 
-dimensions = [dim_num_filters,
-              dim_kernel_size,
-              dim_dropout,
-              dim_use_skip_connections,
-              dim_use_batch_norm,
-              dim_num_epochs,
-              dim_batch_size]
+dimensions = [
+    dim_num_dense_nodes,
+    dim_num_dense_layers,
+    dim_use_batch_norms,
+    dim_dropout,
+    dim_num_epochs,
+    dim_batch_size
+]
 
-def create_model_fn(num_filters, kernel_size, dropout, use_skip_connections, use_batch_norm, nb_lags):
-    nb_dilations = max(math.ceil(math.log(nb_lags/kernel_size,kernel_size)+1),1) 
-    print('dilations:', nb_dilations)
-    print('receptive field: ', (kernel_size**(nb_dilations-1))*kernel_size)
+def create_model(num_dense_nodes, num_dense_layers, use_batch_norm, dropout):
     def create_model():
-        model = Sequential(name='tcn')
-        dilations = [2 ** i for i in range(nb_dilations)]
-        model.add(TCN(
-            nb_filters=2**num_filters,
-            kernel_size=int(kernel_size),
-            nb_stacks=1,
-            dilations=dilations,
-            padding='causal',
-            use_skip_connections=use_skip_connections,
-            dropout_rate=dropout,
-            return_sequences=False,
-            activation='relu',
-            kernel_initializer='he_normal',
-            use_batch_norm=use_batch_norm,
-            use_layer_norm=False))
+        model = Sequential(name='mlp')
+        for _ in range(num_dense_layers):
+            model.add(Dense(2**num_dense_nodes, activation='relu'))
+            if use_batch_norm == 1:
+                model.add(BatchNormalization())
+            model.add(Dropout(dropout))
         model.add(Dense(1, activation='linear'))
-        model.compile(loss='MSE',
-                      optimizer='adam',
-                      )
+        model.compile(optimizer='adam',
+                      loss='MSE',
+                      metrics=keras.metrics.MSE)
         return model
     return create_model
 
-best_score = 0.0
-
 
 @use_named_args(dimensions=dimensions)
-def fitness(num_filters, kernel_size, dropout, use_skip_connections, use_batch_norm, num_epochs, batch_size):
-    print('Model hyper-parameters')
-    print('num_filters:', num_filters)
-    print('kernel_size:', kernel_size)
-    print('dropout:', dropout)
-    print('use_skip_connections:', use_skip_connections)
+def fitness(num_dense_nodes, num_dense_layers, use_batch_norm, dropout, num_epochs, batch_size):
+    print('num_dense_nodes:', num_dense_nodes)
+    print('num_dense_layers:', num_dense_layers)
     print('use_batch_norm:', use_batch_norm)
-    print('num_epochs:', num_epochs)
+    print('dropout:', dropout)
+    print('num_epochs: ', num_epochs)
     print('batch_size: ', batch_size)
     print()
+    model_fn = create_model(
+        num_dense_nodes, num_dense_layers, use_batch_norm, dropout)
 
-    model_fn = create_model_fn(
-        num_filters, kernel_size, dropout, use_skip_connections, use_batch_norm,4)
-
-    pe = PersonalExperiment(model_fn, 'tcn', 'regression', 34, 4, 1, 60, True)
+    pe = ImpersonalExperiment(model_fn, 'mlp', 'regression', 34, 4, 1, 60, False)
     pe.run(2**num_epochs, 2**batch_size, verbose=1)
     score = pe.get_mean_score()
     del pe
-    print()
-    print("Score: {0:.3}".format(score))
-    print()
-    global best_score
-
-    if score > best_score:
-        best_score = score
+    del model_fn
     return score
 
 
-#%%
-default_parameters = [2, 2, .3, 0, 1, 4, 5]
+# %%
+checkpoint_file = 'pkl/checkpoint_mlp_34_imp.pkl'
+checkpoint_saver = CheckpointSaver(checkpoint_file, compress=9)
 
-fitness(x=default_parameters)
-
 #%%
-search_result = gp_minimize(func=fitness,
-                            dimensions=dimensions,
-                            acq_func='EI',  # Expected Improvement.
-                            n_calls=80,
-                            verbose=True)
+res = load(checkpoint_file)
+x0 = res.x_iters
+y0 = res.func_vals
+print(len(x0))
+sorted(zip(y0, x0))
+#%%
+if (file_exists(checkpoint_file)):
+    
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                x0=x0,
+                                y0=y0,
+                                acq_func='EI',  # Expected Improvement.
+                                n_calls=50 - len(y0),
+                                callback=[checkpoint_saver],
+                                verbose=True,
+                                n_random_starts=0,
+                                random_state=seed)
+else:
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                acq_func='EI',  # Expected Improvement.
+                                n_calls=50,  # - len(y0),
+                                callback=[checkpoint_saver],
+                                verbose=True,
+                                random_state=seed)
+
 
 print(search_result.fun)
 
 sorted(zip(search_result.func_vals, search_result.x_iters))
 
-#%%
-# personal / tcn / 34
-# (0.46880000000000005, [5, 4, 0.8, 2, 1, 0, 8, 3]
 
-# personal / tcn / 32
-# (0.6199441317952524, [-2, 8, 1, 0.0, 4, 0.8, 6, 6])
 
-# impersonal / tcn / 34
+
+
+
+
 
 #%%
+# personal / mlp / 34
+# (0.2516, [8, 4, 1, 0.8, 6, 3])
+
+# personal / mlp / 32
+# (0.3606, [2, 2, 0, 0.3677612439658075, 6, 3])
+
+# impersonal / mlp / 34
+#
