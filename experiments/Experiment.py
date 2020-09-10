@@ -135,12 +135,16 @@ class Experiment(ABC):
                 model = self.model_fn()
                 tf.keras.backend.clear_session()
 
+                validation_data = None
+                if verbose == 2:
+                    validation_data = (X_test,y_test)
                 model.fit(X_train,
                           y_train,
                           batch_size=batch_size,
                           epochs=nb_epochs,
                           #class_weight=class_weight,
-                          verbose=(0,2)[verbose>1])
+                          verbose=(0,2)[verbose>1],
+                          validation_data=validation_data)
                 end = time.time()
                 total = round((end - start) / 60, 3)
                 y_pred = model.predict(X_test)
