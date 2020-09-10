@@ -33,7 +33,7 @@ dim_dropout = Real(low=.0, high=.8, name='dropout')
 dim_use_skip_connections = Integer(low=0, high=1, name='use_skip_connections')
 dim_use_batch_norm = Integer(low=0, high=1, name='use_batch_norm')
 dim_num_epochs = Integer(low=2, high=8, name='num_epochs')
-dim_batch_size = Integer(low=3, high=6, name='batch_size')
+dim_batch_size = Integer(low=3, high=8, name='batch_size')
 
 dimensions = [dim_num_filters,
               dim_kernel_size,
@@ -96,45 +96,56 @@ def fitness(num_filters, kernel_size, dropout, use_skip_connections, use_batch_n
 
 
 #%%
-#default_parameters = [4, 4, .3, 1, 0, 4, 3]
-
-#fitness(x=default_parameters)
-
-#%%
-checkpoint_file = 'pkl/checkpoint_mlp_34.pkl' 
-if (file_exists(checkpoint_file)):
-    res = load(checkpoint_file)
-    x0 = res.x_iters
-    y0 = res.func_vals
-else:
-    x0=None
-    y0=None
-print(len(x0))
-sorted(zip(y0,x0))
-#%%
+checkpoint_file = 'pkl/checkpoint_tcn_32_per.pkl' 
 checkpoint_saver = CheckpointSaver(checkpoint_file, compress=9)
-search_result = gp_minimize(func=fitness,
-                            dimensions=dimensions,
-                            x0=x0,
-                            y0=y0,  
-                            acq_func='EI',  # Expected Improvement.
-                            n_calls=100 - len(y0),
-                            callback=[checkpoint_saver],
-                            verbose=True,
-                            n_random_starts=0,
-                            random_state=seed)
+
+
+#%%
+res = load(checkpoint_file)
+x0 = res.x_iters
+y0 = res.func_vals
+print(len(x0))
+sorted(zip(y0, x0))
+
+
+#%%
+if (file_exists(checkpoint_file)):
+    
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                x0=x0,
+                                y0=y0,
+                                acq_func='EI',  # Expected Improvement.
+                                n_calls=100 - len(y0),
+                                callback=[checkpoint_saver],
+                                verbose=True,
+                                n_random_starts=0,
+                                random_state=seed)
+else:
+
+    search_result = gp_minimize(func=fitness,
+                                dimensions=dimensions,
+                                acq_func='EI',  # Expected Improvement.
+                                n_calls=50,  # - len(y0),
+                                callback=[checkpoint_saver],
+                                verbose=True,
+                                random_state=seed)
+
 
 print(search_result.fun)
 
 sorted(zip(search_result.func_vals, search_result.x_iters))
 
+ 
+
 #%%
 # personal / tcn / 34
-# (0.2546, [4, 3, 0.8, 1, 1, 8, 3])
+# (0.2578, [4, 4, 0.8, 1, 1, 8, 3])
 
 # personal / tcn / 32
-# (0.3798, [6, 4, 0.27977287746509466, 1, 1, 8, 3])
+# (0.3836, [2, 2, 0.8, 0, 1, 8, 3]),
 
 # impersonal / tcn / 34
-
-#%%
+# (0.21599999999999997, [6, 2, 0.8, 0, 1, 6, 7]),
+# impersonal / tcn / 32
+# (0.307, [2, 4, 0.505993020593099, 0, 1, 8, 7])
