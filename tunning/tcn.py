@@ -7,7 +7,7 @@ import math
 from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv1D, Dense, Flatten
+from tensorflow.keras.layers import Dense
 from tensorflow.keras.optimizers import Adam
 
 from tcn import TCN
@@ -16,7 +16,6 @@ import skopt
 from skopt import gp_minimize
 from skopt.space import Real, Categorical, Integer
 from skopt.utils import use_named_args
-
 from skopt import callbacks
 from skopt.callbacks import CheckpointSaver
 from skopt import load
