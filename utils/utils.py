@@ -17,7 +17,7 @@ def get_user_data(data, userId):
 
     """
     result = data.loc[data.index.get_level_values(0) == userId]
-    assert (result.shape[0]!=0), 'The user does not exist.'
+    assert (result.shape[0] != 0), 'The user does not exist.'
     return result
 
 
@@ -27,7 +27,7 @@ def get_not_user_data(data, userId):
     :return: all the data except that of the user specidied
 
     """
-    return data.loc[data.index.get_level_values(0) != userId]
+    return data.loc[data.index.get_level_values(0) != userId].sort_index(level=1)
 
 
 def create_classifier_model(clf):
@@ -35,7 +35,7 @@ def create_classifier_model(clf):
     Makes a pipeline from the clf param and a MinMaxScaler
 
     '''
-    
+
     transformer = ColumnTransformer([('scale', MinMaxScaler(), numeric_cols)],
                                     remainder='passthrough')
     return make_pipeline(transformer, clf)
@@ -51,4 +51,3 @@ def get_granularity_from_minutes(nb_min):
     else:
         gran = f'{nb_min}min'
     return gran
-
