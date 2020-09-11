@@ -3,7 +3,8 @@ __pycache__/
 */__pycache__/
 */*/__pycache__/
 sensing_data/*
-pkl/*
+pkl/datasets/*
+pkl/lagged_datasets/*
+pkl/sensing_data/*
 dataset/
 logs/
-setting.json
