@@ -41,6 +41,8 @@ class Experiment(ABC):
             # return sqrt(mean_squared_error(x, y))
             self.scoring_func = mean_squared_error  # rmse
 
+        self.déjà_fait = False
+
     @abstractmethod
     def prepare_data(self):
         pass
@@ -91,15 +93,19 @@ class Experiment(ABC):
 
     # def set_model_imput(self):
 
+    def load():
+        if self.déjà_fait:
+            self.experiment_data = pkl.load(open(self.filename, 'rb'))
+
     def run(self, nb_epochs=64, batch_size=64, with_class_weights=False, verbose=0):
         print('*** ' * 10)
+        print('Experiment is: ')
+        print(self.name)
         self.filename = f'pkl/experiments/{self.name}.pkl'
 
         if not file_exists(self.filename):
             print(f'Beginning experiment: ')
-            self.déjà_fait = False
             self.prepare_data()
-            print(self.name)
             self.experiment_data['scores'] = []
             self.experiment_data['time_to_train'] = []
             self.experiment_data['y_test_pred'] = []
@@ -166,14 +172,14 @@ class Experiment(ABC):
                 del model
             print(f'Experiment finished')
         else:
-            print('Experiment already done... loading it')
-            self.experiment_data = pkl.load(open(self.filename, 'rb'))
+            print('Experiment already done...')
             self.déjà_fait = True
         if verbose > 0:
             print(self.experiment_data['scores'])
             print(self.experiment_data['nb_params'])
             print(self.experiment_data['time_to_train'])
         print('*** ' * 10)
+        print('')
 
     def get_experiment_data(self):
         return self.experiment_data

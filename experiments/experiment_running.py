@@ -3,12 +3,16 @@ from tensorflow import keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import InputLayer, Input
-from tensorflow.keras.layers import Reshape, MaxPooling2D
-from tensorflow.keras.layers import Conv2D, Dense, Flatten, LSTM
+from tensorflow.keras.layers import Conv1D, Dense, Flatten, LSTM, Dropout, BatchNormalization
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 from tensorflow.keras.layers import Dropout
+from tcn import TCN
+
+import math
+
+from skopt import load
 
 from preprocessing.model_ready import get_list_of_users
 
@@ -19,82 +23,97 @@ from sklearn.cluster import KMeans
 import pandas as pd
 from sklearn.metrics import pairwise_distances_argmin_min
 
-def create_rnn_model_fn(learning_rate, num_lstm_layers, num_lstm_nodes, dropout):
-    def create_rnn_model():
-        use_two_layers = num_lstm_layers == 2
 
-        model = Sequential(name='rnn')
-
-        name = 'layer_LSTM_{0}'.format(str(2**num_lstm_nodes))
-        model.add(LSTM(2**num_lstm_nodes,
-                       return_sequences=use_two_layers,
-                       name=name))
-        model.add(Dropout(dropout))
-
-        if use_two_layers:
-            model.add(LSTM(2**(num_lstm_nodes-1), return_sequences=False))
-
+def create_cnn_model_fn(num_filters, num_kernels, conv_dropout, num_dense_nodes, dense_dropout):
+    def create_model():
+        model = Sequential(name='cnn')
+        model.add(Conv1D(filters=2**num_filters,
+                         kernel_size=int(num_kernels),
+                         activation='relu',
+                         padding='causal'))
+        model.add(Dropout(conv_dropout))
+        model.add(Flatten())
+        if num_dense_nodes > 0:
+            model.add(Dense(2**num_dense_nodes, activation='relu'))
+            model.add(Dropout(dense_dropout))
         model.add(Dense(1, activation='linear'))
-        optimizer = Adam(lr=learning_rate)
-        model.compile(optimizer=optimizer,
-                      loss='MSE',
-                      metrics=keras.metrics.MSE)
-        return model
-    return create_rnn_model
 
-def create_mlp_model_fn(learning_rate, num_dense_nodes, dropout):
-    def create_mlp_model():
-        model = Sequential(name='mlp')
-        for i in range(num_dense_nodes,1,-1):
-            model.add(Dense(2**i, activation='relu'))
-            model.add(Dropout(dropout))
-        model.add(Dense(1, activation='linear'))
-        optimizer = Adam(lr=learning_rate)
-        model.compile(optimizer=optimizer,
-                    loss='MSE',
-                    metrics=keras.metrics.MSE)
+        model.compile(loss='MSE',
+                      optimizer='adam', metrics=keras.metrics.MSE
+                      )
         return model
     return create_model
 
 
-models = {
-    'personal': {
-        'rnn': {
-            34: (create_rnn_model_fn(1e-2, 2, 2**6, 0.2587621188847304, 2**6, 0.8), 2**6, 2**3),
-            32: (create_rnn_model_fn(1e-2, 1, 2**2, 0.34434530063418983, 2**6, 0.0), 2**6, 2**4)
-        },
-        'cnn': {
-            34: (create_cnn_model_fn(1e-2, 2**7, 2, 0.5699083979399923, 2**6, 0.10119762716042291), 2**5, 2**3),
-            32: (create_cnn_model_fn(1e-2, 2**8, 1, 0.0, 2**4, 0.8, ), 2**6, 2**6)
-        },
-        'tcn': {
-            34: (create_tcn_model_fn([5, 4, .8, 2, 1, 0, 8, 3]), 2**8, 2**3),
-            32: (create_tcn_model_fn(), 2**)
-        },
-        'mlp': {
-            34: (create_mlp_model_fn(-2, 2**9, 0.2839842121499357), 2**4, 2**3),
-            32: (create_mlp_model_fn(-3, 2**7, 0.29014804584108833),2**6, 2**3)
-        },
-    },
-    'impersonal': {
-        'rnn': {
-            34: (create_rnn_model_fn(), 2**),
-            32: (create_rnn_model_fn(), 2**)
-        },
-        'cnn': {
-            34: (create_cnn_model_fn(), 2**),
-            32: (create_cnn_model_fn(), 2**)
-        },
-        'tcn': {
-            34: (create_tcn_model_fn(), 2**),
-            32: (create_tcn_model_fn(), 2**)
-        },
-        'mlp': {
-            34: (create_mlp_model_fn(1e-2, 2**5, 0.06986817338556388), 2**6, 2**4),
-            32: (create_mlp_model_fn(), 2**)
-        },
-    }
-}
+def create_mlp_model_fn(num_dense_nodes, num_dense_layers, use_batch_norm, dropout):
+    def create_model():
+        model = Sequential(name='mlp')
+        for _ in range(num_dense_layers):
+            model.add(Dense(2**num_dense_nodes, activation='relu'))
+            if use_batch_norm == 1:
+                model.add(BatchNormalization())
+            model.add(Dropout(dropout))
+        model.add(Dense(1, activation='linear'))
+        model.compile(optimizer='adam',
+                      loss='MSE',
+                      metrics=keras.metrics.MSE)
+        return model
+    return create_model
+
+
+def create_rnn_model_fn(num_lstm_layers, num_lstm_nodes, lstm_dropout, num_dense_nodes, dense_dropout):
+    def create_model():
+        use_two_layers = num_lstm_layers == 2
+
+        model = Sequential(name='rnn')
+        model.add(LSTM(2**num_lstm_nodes, return_sequences=use_two_layers))
+        model.add(Dropout(lstm_dropout))
+
+        if use_two_layers:
+            model.add(LSTM(2**(num_lstm_nodes-1), return_sequences=False))
+            model.add(Dropout(lstm_dropout))
+
+        if num_dense_nodes > 0:
+            model.add(Dense(2**num_dense_nodes, activation='relu'))
+            model.add(Dropout(dense_dropout))
+
+        model.add(Dense(1, activation='linear'))
+        model.compile(optimizer='adam',
+                      loss='MSE', metrics=keras.metrics.MSE)
+        return model
+    return create_model
+
+
+def create_tcn_model_fn(num_filters, kernel_size, dropout, use_skip_connections, use_batch_norm, nb_lags):
+    nb_dilations = max(
+        math.ceil(math.log(nb_lags/kernel_size, kernel_size)+1), 2)
+    if use_skip_connections == 1 and nb_dilations == 1:
+        nb_dilations += 1
+    print('dilations:', nb_dilations)
+    print('receptive field: ', (kernel_size**(nb_dilations-1))*kernel_size)
+
+    def create_model():
+        model = Sequential(name='tcn')
+        dilations = [2 ** i for i in range(nb_dilations)]
+        model.add(TCN(
+            nb_filters=2**num_filters,
+            kernel_size=int(kernel_size),
+            nb_stacks=1,
+            dilations=dilations,
+            padding='causal',
+            use_skip_connections=use_skip_connections,
+            dropout_rate=dropout,
+            return_sequences=False,
+            activation='relu',
+            kernel_initializer='he_normal',
+            use_batch_norm=use_batch_norm,
+            use_layer_norm=False))
+        model.add(Dense(1, activation='linear'))
+        model.compile(loss='MSE',
+                      optimizer='adam', metrics=keras.metrics.MSE
+                      )
+        return model
+    return create_model
 
 
 def get_closests():
@@ -106,42 +125,58 @@ def get_closests():
     k = 2
     nb_kmean = k
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
-    y = pd.DataFrame(data = {'group': kmeans.predict(d), 'user': d.reset_index().iloc[:,0].values})
-    user_34_group = int(y.loc[y.user==34,'group'])
-    user_32_group = int(y.loc[y.user==32,'group'])
-    y.loc[y.group==user_34_group,'group'] = 34
-    y.loc[y.group==user_32_group,'group'] = 32
-    y = y.set_index('user').iloc[:,0].to_dict()
+    y = pd.DataFrame(data={'group': kmeans.predict(
+        d), 'user': d.reset_index().iloc[:, 0].values})
+    user_34_group = int(y.loc[y.user == 34, 'group'])
+    user_32_group = int(y.loc[y.user == 32, 'group'])
+    y.loc[y.group == user_34_group, 'group'] = 34
+    y.loc[y.group == user_32_group, 'group'] = 32
+    y = y.set_index('user').iloc[:, 0].to_dict()
 
     return y
 
-def run_all_experiments():
+
+def get_model(arch, *args,):
+    model_fn_dict = {'mlp': create_mlp_model_fn,
+                     'cnn': create_cnn_model_fn,
+                     'rnn': create_rnn_model_fn,
+                     'tcn': create_tcn_model_fn}
+    return model_fn_dict[arch](*args)
+
+
+def get_model_info(arch, centroid, model_type):
+    checkpoint_file = f'pkl/tunning/checkpoint_{arch}_{centroid}_{model_type}.pkl'
+    res = load(checkpoint_file)
+    return sorted(zip(res.func_vals, res.x_iters))[0][1]
+
+
+def run_all_experiments(verbose=0):
     task_type = 'regression'
     closest = get_closests()
     # model combinations
-    for poi in ['personal', 'impersonal']:
-        for arq in ['rnn', 'cnn', 'tcn', 'mlp']:
-            need_3d_input = (arq != 'mlp')
+    for poi in ['per', 'imp']:
+        for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
+            need_3d_input = (arch != 'mlp')
             for user in get_list_of_users():
 
-                closest_centroid = closest[user]  # TODO implement function
-                info_model = models[poi][arq][closest_centroid]
-                model = info_model[0]
-                epochs = info_model[1]
-                
+                closest_centroid = closest[user]
+                model_info = get_model_info(arch, closest_centroid, poi)
+                model = get_model(arch, *model_info[:-2])
+                [nb_epochs, batch_size] = model_info[-2:]
                 # dataset combinations
-                for nb_lag in [1, 2, 4, 8]:
+                for nb_lags in [1, 2, 4, 8]:
                     for period in [1, 2, 4]:
                         for gran in [30, 60]:
-                            if poi == 'personal':
+                            if poi == 'per':
                                 experiment = PersonalExperiment(
-                                    model, arq, task_type, user, nb_lags, period, need_3d_input)
+                                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
                             else:
                                 experiment = ImpersonalExperiment(
-                                    model, arq, task_type, user, nb_lags, period, need_3d_input)
-                            experiment.run(epochs)
+                                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
+                            experiment.run(2**nb_epochs, 2 **
+                                           batch_size, verbose=verbose)
                             if not experiment.déjà_fait:
                                 experiment.save()
-                            print(experiment.get_results())
-                            print(experiment.get_mean_score())
+                            # print(experiment.get_results())
+                            # print(experiment.get_mean_score())
                             del experiment
