@@ -15,6 +15,7 @@ import numpy as np
 from math import sqrt
 from keras import backend as K
 
+
 class Experiment(ABC):
     def __init__(self, model_fn, model_name, task_type, user, nb_lags, period, nb_min, need_3d_input):
         self.lags = nb_lags
@@ -36,9 +37,9 @@ class Experiment(ABC):
         if self.task_type == 'classification':
             self.scoring_func = roc_auc_score
         else:
-            #def rmse(x, y):
-                #return sqrt(mean_squared_error(x, y))
-            self.scoring_func = mean_squared_error#rmse
+            # def rmse(x, y):
+            # return sqrt(mean_squared_error(x, y))
+            self.scoring_func = mean_squared_error  # rmse
 
     @abstractmethod
     def prepare_data(self):
@@ -88,9 +89,9 @@ class Experiment(ABC):
         del ss
         return X_train, X_test
 
-    #def set_model_imput(self):
+    # def set_model_imput(self):
 
-    def run(self, nb_epochs=64, batch_size=64, with_class_weights=True, verbose=0):
+    def run(self, nb_epochs=64, batch_size=64, with_class_weights=False, verbose=0):
         print('*** ' * 10)
         self.filename = f'pkl/experiments/{self.name}.pkl'
 
@@ -101,11 +102,12 @@ class Experiment(ABC):
             print(self.name)
             self.experiment_data['scores'] = []
             self.experiment_data['time_to_train'] = []
+            self.experiment_data['y_test_pred'] = []
             i = 1
             for split_data in self.time_series_split():
-                
+
                 print(f'Starting iteration nb {i} of {self.validation_splits}')
-                K.clear_session() #clears tf state like model graph parameters
+                K.clear_session()  # clears tf state like model graph parameters
                 i += 1
                 X_train, y_train, X_test, y_test = split_data
                 #print([x.shape for x in split_data])
@@ -137,26 +139,26 @@ class Experiment(ABC):
 
                 validation_data = None
                 if verbose == 2:
-                    validation_data = (X_test,y_test)
+                    validation_data = (X_test, y_test)
                 model.fit(X_train,
                           y_train,
                           batch_size=batch_size,
                           epochs=nb_epochs,
-                          #class_weight=class_weight,
-                          verbose=(0,2)[verbose>1],
+                          # class_weight=class_weight,
+                          verbose=(0, 2)[verbose > 1],
                           validation_data=validation_data)
                 end = time.time()
                 total = round((end - start) / 60, 3)
                 y_pred = model.predict(X_test)
-                #if self.task_type == 'classification':
+                # if self.task_type == 'classification':
                 #    y_pred = (y_pred > 0.5) * 1.0
                 score = self.scoring_func(y_test, y_pred)
 
-                self.experiment_data['scores'].append(round(score,3))
+                self.experiment_data['scores'].append(round(score, 3))
                 self.experiment_data['nb_params'] = model.count_params()
-                self.experiment_data['y_test_pred']=(y_train, y_pred)
+                self.experiment_data['y_test_pred'].append((y_test, y_pred))
                 self.experiment_data['time_to_train'].append(total)
-                if verbose>1:
+                if verbose > 1:
                     print('Shapes for this iteration are: ')
                     print(f'X_train: {X_train.shape}')
                     print(f'X_test: {X_test.shape}')
@@ -167,7 +169,7 @@ class Experiment(ABC):
             print('Experiment already done... loading it')
             self.experiment_data = pkl.load(open(self.filename, 'rb'))
             self.déjà_fait = True
-        if verbose>0:     
+        if verbose > 0:
             print(self.experiment_data['scores'])
             print(self.experiment_data['nb_params'])
             print(self.experiment_data['time_to_train'])
@@ -187,7 +189,7 @@ class PersonalExperiment(Experiment):
 
     def prepare_data(self):
         # TODO pasar a __init__
-        self.name += '_personal' 
+        self.name += '_personal'
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=self.user,
                                           nb_lags=self.nb_lags,
@@ -199,7 +201,7 @@ class PersonalExperiment(Experiment):
 
 class ImpersonalExperiment(Experiment):
     def prepare_data(self):
-        self.name += '_impersonal' 
+        self.name += '_impersonal'
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=-1,
                                           nb_lags=self.nb_lags,
