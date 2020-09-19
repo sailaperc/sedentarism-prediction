@@ -6,4 +6,7 @@ def fitness():
     pass
 
 
-run_all_experiments(verbose=0)
+run_all_experiments(verbose=1)
+
+
+# %%

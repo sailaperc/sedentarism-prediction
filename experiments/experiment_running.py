@@ -153,12 +153,14 @@ def get_model_info(arch, centroid, model_type):
 def run_all_experiments(verbose=0):
     task_type = 'regression'
     closest = get_closests()
+    users = get_list_of_users()
+    cant_experiments = 2 * 4 * 4 * 3 * 2 * len(users)
+    c = 0
     # model combinations
     for poi in ['per', 'imp']:
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             need_3d_input = (arch != 'mlp')
-            for user in get_list_of_users():
-
+            for user in users:
                 closest_centroid = closest[user]
                 model_info = get_model_info(arch, closest_centroid, poi)
                 model = get_model(arch, *model_info[:-2])
@@ -180,3 +182,8 @@ def run_all_experiments(verbose=0):
                             # print(experiment.get_results())
                             # print(experiment.get_mean_score())
                             del experiment
+                            c += 1
+                            print('#' * 4)
+                            print(
+                                f'{c}/{cant_experiments} fishished experiments')
+                            print('#' * 4)

@@ -14,6 +14,7 @@ import tensorflow as tf
 import numpy as np
 from math import sqrt
 from keras import backend as K
+import numpy as np
 
 
 class Experiment(ABC):
@@ -93,7 +94,7 @@ class Experiment(ABC):
 
     # def set_model_imput(self):
 
-    def load():
+    def load(self):
         if self.déjà_fait:
             self.experiment_data = pkl.load(open(self.filename, 'rb'))
 
@@ -116,68 +117,75 @@ class Experiment(ABC):
                 K.clear_session()  # clears tf state like model graph parameters
                 i += 1
                 X_train, y_train, X_test, y_test = split_data
-                #print([x.shape for x in split_data])
-                X_train, X_test = self.normalize(X_train, X_test)
+                if X_train.shape[0] == 0 or X_test.shape[0] == 0:
+                    self.experiment_data['scores'].append(np.NaN)
+                    self.experiment_data['y_test_pred'].append(np.NaN)
+                    self.experiment_data['time_to_train'].append(0)
+                else:
+                    #print([x.shape for x in split_data])
+                    X_train, X_test = self.normalize(X_train, X_test)
 
-                if self.need_3d_input:
-                    nb_features = int(X_train.shape[1]/self.nb_lags)
-                    nb_lags = self.nb_lags
-                    nb_train_samples = X_train.shape[0]
-                    nb_test_samples = X_test.shape[0]
-                    X_train = X_train.reshape(
-                        nb_train_samples, nb_lags, nb_features)
-                    X_test = X_test.reshape(
-                        nb_test_samples, nb_lags, nb_features)
+                    if self.need_3d_input:
+                        nb_features = int(X_train.shape[1]/self.nb_lags)
+                        nb_lags = self.nb_lags
+                        nb_train_samples = X_train.shape[0]
+                        nb_test_samples = X_test.shape[0]
+                        X_train = X_train.reshape(
+                            nb_train_samples, nb_lags, nb_features)
+                        X_test = X_test.reshape(
+                            nb_test_samples, nb_lags, nb_features)
 
-                # if self.task_type=='classification':
-                #     if with_class_weights:
-                #         neg, pos = np.bincount(y_train.astype('int'))
-                #         total = neg+pos
-                #         weight_for_0 = (1 / neg)*(total)/2.0
-                #         weight_for_1 = (1 / pos)*(total)/2.0
-                #         class_weight = {0: weight_for_0, 1: weight_for_1}
-                #     else:
-                #         class_weight = {0: 1.0, 1: 1.0}
+                    # if self.task_type=='classification':
+                    #     if with_class_weights:
+                    #         neg, pos = np.bincount(y_train.astype('int'))
+                    #         total = neg+pos
+                    #         weight_for_0 = (1 / neg)*(total)/2.0
+                    #         weight_for_1 = (1 / pos)*(total)/2.0
+                    #         class_weight = {0: weight_for_0, 1: weight_for_1}
+                    #     else:
+                    #         class_weight = {0: 1.0, 1: 1.0}
 
-                start = time.time()
-                model = self.model_fn()
-                tf.keras.backend.clear_session()
+                    start = time.time()
+                    model = self.model_fn()
+                    tf.keras.backend.clear_session()
 
-                validation_data = None
-                if verbose == 2:
-                    validation_data = (X_test, y_test)
-                model.fit(X_train,
-                          y_train,
-                          batch_size=batch_size,
-                          epochs=nb_epochs,
-                          # class_weight=class_weight,
-                          verbose=(0, 2)[verbose > 1],
-                          validation_data=validation_data)
-                end = time.time()
-                total = round((end - start) / 60, 3)
-                y_pred = model.predict(X_test)
-                # if self.task_type == 'classification':
-                #    y_pred = (y_pred > 0.5) * 1.0
-                score = self.scoring_func(y_test, y_pred)
+                    validation_data = None
+                    if verbose == 2:
+                        validation_data = (X_test, y_test)
+                    model.fit(X_train,
+                              y_train,
+                              batch_size=batch_size,
+                              epochs=nb_epochs,
+                              # class_weight=class_weight,
+                              verbose=(0, 2)[verbose > 1],
+                              validation_data=validation_data)
+                    end = time.time()
+                    total = round((end - start) / 60, 3)
+                    y_pred = model.predict(X_test)
+                    # if self.task_type == 'classification':
+                    #    y_pred = (y_pred > 0.5) * 1.0
+                    score = self.scoring_func(y_test, y_pred)
 
-                self.experiment_data['scores'].append(round(score, 3))
-                self.experiment_data['nb_params'] = model.count_params()
-                self.experiment_data['y_test_pred'].append((y_test, y_pred))
-                self.experiment_data['time_to_train'].append(total)
-                if verbose > 1:
-                    print('Shapes for this iteration are: ')
-                    print(f'X_train: {X_train.shape}')
-                    print(f'X_test: {X_test.shape}')
-                    #print(f'Class weights are: {class_weight}')
-                del model
-            print(f'Experiment finished')
+                    self.experiment_data['scores'].append(round(score, 3))
+                    self.experiment_data['nb_params'] = model.count_params()
+                    self.experiment_data['y_test_pred'].append(
+                        (y_test, y_pred))
+                    self.experiment_data['time_to_train'].append(total)
+                    if verbose > 1:
+                        print('Shapes for this iteration are: ')
+                        print(f'X_train: {X_train.shape}')
+                        print(f'X_test: {X_test.shape}')
+                        #print(f'Class weights are: {class_weight}')
+                    del model
+            if verbose > 0:
+                print(self.experiment_data['scores'])
+                print(self.experiment_data['nb_params'])
+                print(self.experiment_data['time_to_train'])
+                print(f'Experiment finished')
         else:
             print('Experiment already done...')
             self.déjà_fait = True
-        if verbose > 0:
-            print(self.experiment_data['scores'])
-            print(self.experiment_data['nb_params'])
-            print(self.experiment_data['time_to_train'])
+
         print('*** ' * 10)
         print('')
 
