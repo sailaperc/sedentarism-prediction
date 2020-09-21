@@ -161,12 +161,16 @@ def run_all_experiments(verbose=0):
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             need_3d_input = (arch != 'mlp')
             for user in users:
-                closest_centroid = closest[user]
-                model_info = get_model_info(arch, closest_centroid, poi)
-                model = get_model(arch, *model_info[:-2])
-                [nb_epochs, batch_size] = model_info[-2:]
+
                 # dataset combinations
                 for nb_lags in [1, 2, 4, 8]:
+                    closest_centroid = closest[user]
+                    model_info = get_model_info(arch, closest_centroid, poi)
+                    [nb_epochs, batch_size] = model_info[-2:]
+                    if arch != 'tcn':
+                        model = get_model(arch, *model_info[:-2])
+                    else:
+                        model = get_model(arch, *(model_info[:-2]+[nb_lags]))
                     for period in [1, 2, 4]:
                         for gran in [30, 60]:
                             if poi == 'per':
