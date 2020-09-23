@@ -122,7 +122,7 @@ class Experiment(ABC):
                     self.experiment_data['y_test_pred'].append(np.NaN)
                     self.experiment_data['time_to_train'].append(0)
                 else:
-                    #print([x.shape for x in split_data])
+                    # print([x.shape for x in split_data])
                     X_train, X_test = self.normalize(X_train, X_test)
 
                     if self.need_3d_input:
@@ -175,13 +175,17 @@ class Experiment(ABC):
                         print('Shapes for this iteration are: ')
                         print(f'X_train: {X_train.shape}')
                         print(f'X_test: {X_test.shape}')
-                        #print(f'Class weights are: {class_weight}')
+                        # print(f'Class weights are: {class_weight}')
                     del model
             if verbose > 0:
-                print(self.experiment_data['scores'])
-                print(self.experiment_data['nb_params'])
-                print(self.experiment_data['time_to_train'])
-                print(f'Experiment finished')
+                print(f"scores: {self.experiment_data['scores']}")
+                print(f"nb_params: {self.experiment_data['nb_params']}")
+                print(
+                    f"time per iteration: {self.experiment_data['time_to_train']}")
+                print(
+                    f"total time: {sum(self.experiment_data['time_to_train'])}")
+
+            print(f'Experiment finished')
         else:
             print('Experiment already done...')
             self.déjà_fait = True
@@ -198,12 +202,18 @@ class Experiment(ABC):
     def get_mean_score(self):
         return np.mean(self.get_results())
 
+    def get_total_time(self):
+        return sum(self.experiment_data['time_to_train'])
+
 
 class PersonalExperiment(Experiment):
 
+    def __init__(self, model_fn, model_name, task_type, user, nb_lags, period, nb_min, need_3d_input):
+        super().__init__(model_fn, model_name, task_type,
+                         user, nb_lags, period, nb_min, need_3d_input)
+        self.name += '_per'
+
     def prepare_data(self):
-        # TODO pasar a __init__
-        self.name += '_personal'
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=self.user,
                                           nb_lags=self.nb_lags,
@@ -214,8 +224,12 @@ class PersonalExperiment(Experiment):
 
 
 class ImpersonalExperiment(Experiment):
+    def __init__(self, model_fn, model_name, task_type, user, nb_lags, period, nb_min, need_3d_input):
+        super().__init__(model_fn, model_name, task_type,
+                         user, nb_lags, period, nb_min, need_3d_input)
+        self.name += '_imp'
+
     def prepare_data(self):
-        self.name += '_impersonal'
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=-1,
                                           nb_lags=self.nb_lags,
@@ -226,6 +240,11 @@ class ImpersonalExperiment(Experiment):
 
 
 class HybridExperiment(Experiment):
+    def __init__(self, model_fn, model_name, task_type, user, nb_lags, period, nb_min, need_3d_input):
+        super().__init__(model_fn, model_name, task_type,
+                         user, nb_lags, period, nb_min, need_3d_input)
+        self.name += '_hyb'
+
     def prepare_data(self):
         self.dataset = get_lagged_dataset(task_type=self.task_type,
                                           user=self.user,

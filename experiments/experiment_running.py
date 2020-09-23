@@ -8,11 +8,15 @@ from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 from tensorflow.keras.layers import Dropout
+from utils.utils import get_granularity_from_minutes
 from tcn import TCN
+from utils.utils import file_exists
 
 import math
 
 from skopt import load
+
+import time
 
 from preprocessing.model_ready import get_list_of_users
 
@@ -159,33 +163,37 @@ def run_all_experiments(verbose=0):
     # model combinations
     for poi in ['per', 'imp']:
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
-            need_3d_input = (arch != 'mlp')
             for user in users:
-
                 # dataset combinations
                 for nb_lags in [1, 2, 4, 8]:
-                    closest_centroid = closest[user]
-                    model_info = get_model_info(arch, closest_centroid, poi)
-                    [nb_epochs, batch_size] = model_info[-2:]
-                    if arch != 'tcn':
-                        model = get_model(arch, *model_info[:-2])
-                    else:
-                        model = get_model(arch, *(model_info[:-2]+[nb_lags]))
                     for period in [1, 2, 4]:
                         for gran in [30, 60]:
-                            if poi == 'per':
-                                experiment = PersonalExperiment(
-                                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
-                            else:
-                                experiment = ImpersonalExperiment(
-                                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
-                            experiment.run(2**nb_epochs, 2 **
-                                           batch_size, verbose=verbose)
-                            if not experiment.déjà_fait:
-                                experiment.save()
-                            # print(experiment.get_results())
-                            # print(experiment.get_mean_score())
-                            del experiment
+                            name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
+                            file_name = f'./pkl/experiments/{name}.pkl'
+                            if not file_exists(file_name):
+                                need_3d_input = (arch != 'mlp')
+                                closest_centroid = closest[user]
+                                model_info = get_model_info(
+                                    arch, closest_centroid, poi)
+                                [nb_epochs, batch_size] = model_info[-2:]
+                                if arch != 'tcn':
+                                    model = get_model(arch, *model_info[:-2])
+                                else:
+                                    model = get_model(
+                                        arch, *(model_info[:-2]+[nb_lags]))
+                                if poi == 'per':
+                                    experiment = PersonalExperiment(
+                                        model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
+                                else:
+                                    experiment = ImpersonalExperiment(
+                                        model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
+                                experiment.run(2**nb_epochs, 2 **
+                                               batch_size, verbose=verbose)
+                                if not experiment.déjà_fait:
+                                    experiment.save()
+                                # print(experiment.get_results())
+                                # print(experiment.get_mean_score())
+                                del experiment
                             c += 1
                             print('#' * 4)
                             print(
