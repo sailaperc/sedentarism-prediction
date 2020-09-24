@@ -3,7 +3,6 @@ import os
 from experiments.experiment_running import run_all_experiments
 import pickle as pkl
 
-# %%
 
 
 def fitness():

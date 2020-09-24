@@ -160,7 +160,9 @@ def run_all_experiments(verbose=0):
     users = get_list_of_users()
     cant_experiments = 2 * 4 * 4 * 3 * 2 * len(users)
     c = 0
+    c2 = 0
     # model combinations
+    times = 0
     for poi in ['per', 'imp']:
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             for user in users:
@@ -191,6 +193,10 @@ def run_all_experiments(verbose=0):
                                                batch_size, verbose=verbose)
                                 if not experiment.déjà_fait:
                                     experiment.save()
+                                times += experiment.get_total_time()
+                                c2 += 1
+                                print(
+                                    f' Tiempo promedio es: {round(time/c2,3)}')
                                 # print(experiment.get_results())
                                 # print(experiment.get_mean_score())
                                 del experiment
