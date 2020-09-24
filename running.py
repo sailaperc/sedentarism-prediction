@@ -4,7 +4,6 @@ from experiments.experiment_running import run_all_experiments
 import pickle as pkl
 
 
-
 def fitness():
     pass
 
@@ -29,3 +28,6 @@ run_all_experiments(verbose=1)
 #         os.remove(f'{path_to_file}/{fn}')
 #         c += 1
 # print(c)
+
+# %%
+a = 4

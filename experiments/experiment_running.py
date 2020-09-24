@@ -18,6 +18,8 @@ from skopt import load
 
 import time
 
+import matplotlib.pyplot as plt
+
 from preprocessing.model_ready import get_list_of_users
 
 from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
@@ -160,9 +162,8 @@ def run_all_experiments(verbose=0):
     users = get_list_of_users()
     cant_experiments = 2 * 4 * 4 * 3 * 2 * len(users)
     c = 0
-    c2 = 0
     # model combinations
-    times = 0
+    times = []
     for poi in ['per', 'imp']:
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             for user in users:
@@ -193,13 +194,12 @@ def run_all_experiments(verbose=0):
                                                batch_size, verbose=verbose)
                                 if not experiment.déjà_fait:
                                     experiment.save()
-                                times += experiment.get_total_time()
-                                c2 += 1
-                                print(
-                                    f' Tiempo promedio es: {round(times/c2,3)}')
-                                # print(experiment.get_results())
-                                # print(experiment.get_mean_score())
+                                times.append(experiment.get_total_time())
                                 del experiment
+                                if c % 10 == 0:
+                                    plt.plot(times)
+                                    plt.show()
+                                    plt.close()
                             c += 1
                             print('#' * 4)
                             print(
