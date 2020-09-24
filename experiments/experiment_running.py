@@ -167,9 +167,9 @@ def run_all_experiments(verbose=0):
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             for user in users:
                 # dataset combinations
-                for nb_lags in [1, 2, 4, 8]:
-                    for period in [1, 2, 4]:
-                        for gran in [30, 60]:
+                for gran in [30, 60]:
+                    for nb_lags in [1, 2, 4, 8]:
+                        for period in [1, 2, 4]:
                             name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
                             file_name = f'./pkl/experiments/{name}.pkl'
                             if not file_exists(file_name):
@@ -196,7 +196,7 @@ def run_all_experiments(verbose=0):
                                 times += experiment.get_total_time()
                                 c2 += 1
                                 print(
-                                    f' Tiempo promedio es: {round(time/c2,3)}')
+                                    f' Tiempo promedio es: {round(times/c2,3)}')
                                 # print(experiment.get_results())
                                 # print(experiment.get_mean_score())
                                 del experiment
