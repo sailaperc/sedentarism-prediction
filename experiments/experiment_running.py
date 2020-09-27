@@ -196,7 +196,7 @@ def run_all_experiments(verbose=0):
                                     experiment.save()
                                 times.append(experiment.get_total_time())
                                 del experiment
-                                if c % 10 == 0:
+                                if c % 5 == 0:
                                     plt.plot(times)
                                     plt.show()
                                     plt.close()
