@@ -45,7 +45,7 @@ def create_cnn_model_fn(num_filters, num_kernels, conv_dropout, num_dense_nodes,
         model.add(Dense(1, activation='linear'))
 
         model.compile(loss='MSE',
-                      optimizer='adam', metrics=keras.metrics.MSE
+                      optimizer='adam', metrics=[keras.metrics.MSE]
                       )
         return model
     return create_model
@@ -62,7 +62,7 @@ def create_mlp_model_fn(num_dense_nodes, num_dense_layers, use_batch_norm, dropo
         model.add(Dense(1, activation='linear'))
         model.compile(optimizer='adam',
                       loss='MSE',
-                      metrics=keras.metrics.MSE)
+                      metrics=[keras.metrics.MSE])
         return model
     return create_model
 
@@ -85,7 +85,7 @@ def create_rnn_model_fn(num_lstm_layers, num_lstm_nodes, lstm_dropout, num_dense
 
         model.add(Dense(1, activation='linear'))
         model.compile(optimizer='adam',
-                      loss='MSE', metrics=keras.metrics.MSE)
+                      loss='MSE', metrics=[keras.metrics.MSE])
         return model
     return create_model
 
@@ -116,7 +116,7 @@ def create_tcn_model_fn(num_filters, kernel_size, dropout, use_skip_connections,
             use_layer_norm=False))
         model.add(Dense(1, activation='linear'))
         model.compile(loss='MSE',
-                      optimizer='adam', metrics=keras.metrics.MSE
+                      optimizer='adam', metrics=[keras.metrics.MSE]
                       )
         return model
     return create_model

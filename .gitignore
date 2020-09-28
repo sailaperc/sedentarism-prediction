@@ -6,6 +6,7 @@ sensing_data/*
 pkl/datasets/*
 pkl/lagged_datasets/*
 pkl/sensing_data/*
+pkl/pickle_protocol5/
 dataset/
 logs/
 .ipynb_checkpoints/
