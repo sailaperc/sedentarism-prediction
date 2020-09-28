@@ -8,3 +8,4 @@ pkl/lagged_datasets/*
 pkl/sensing_data/*
 dataset/
 logs/
+.ipynb_checkpoints/
