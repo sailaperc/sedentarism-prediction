@@ -20,6 +20,7 @@ def create_sensing_table(sensor):
         print(f'{sensor} data already generated')
     else:
         path = 'dataset/sensing/' + sensor + '/' + sensor + '_u'
+        print(path)
         df = pd.read_csv(path + '00' + '.csv', index_col=False)
         df['userId'] = '00'
         for a in range(1, 60):
@@ -40,7 +41,7 @@ def create_sensing_table(sensor):
 
 
 def create_sensing_tables():
-    sensor_data_files = ['activity', 'audio', 'bt','gps', 'dark',
+    sensor_data_files = ['activity', 'audio','gps', 'dark',
                          'phonelock', 'wifi', 'phonecharge', 'bt',
                          'calendar', 'wifi_location', 'conversation']
     for file in sensor_data_files:
