@@ -11,7 +11,6 @@ from tensorflow.keras.layers import Dropout
 from utils.utils import get_granularity_from_minutes
 from tcn import TCN
 from utils.utils import file_exists
-
 import math
 
 from skopt import load
@@ -168,10 +167,11 @@ def run_all_experiments(verbose=0):
         for arch in ['rnn', 'cnn', 'tcn', 'mlp']:
             for user in users:
                 # dataset combinations
-                for gran in [30, 60]:
+                for gran in [60,30]:
                     for nb_lags in [1, 2, 4, 8]:
                         for period in [1, 2, 4]:
                             name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
+                            print(f'time is: {time.time()}')
                             file_name = f'./pkl/experiments/{name}.pkl'
                             if not file_exists(file_name):
                                 need_3d_input = (arch != 'mlp')
