@@ -174,7 +174,7 @@ def get_combinations(reverse_order):
     return combs
 
 
-def run_all_experiments(reverse_order=False, verbose=0):
+def run_all_experiments(reverse_order:bool=False, verbose=0):
     task_type = 'regression'
     closest = get_closests()
     c = 0
