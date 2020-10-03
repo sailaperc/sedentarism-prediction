@@ -1,7 +1,7 @@
-# %%
+import sys
 from experiments.experiment_running import run_all_experiments
 
 def fitness():
     pass
 
-run_all_experiments(verbose=1, reverse_order=True)
+run_all_experiments(verbose=1, reverse_order=sys.argv[0])
