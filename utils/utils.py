@@ -51,3 +51,14 @@ def get_granularity_from_minutes(nb_min):
     else:
         gran = f'{nb_min}min'
     return gran
+
+
+def add_per_to_all_experiments():
+    '''
+    add _per to all experiment pkl in case I forget to do it
+    '''
+    path_to_file = './pkl/experiments'
+    c = 0
+    for fn in os.listdir(path_to_file):
+        nfn = fn[:-4] + '_per' + fn[-4:]
+        os.rename(f'{path_to_file}/{fn}', f'{path_to_file}/{nfn}')
