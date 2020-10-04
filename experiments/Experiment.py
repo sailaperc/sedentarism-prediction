@@ -165,7 +165,7 @@ class Experiment(ABC):
                               batch_size=batch_size,
                               epochs=nb_epochs,
                               # class_weight=class_weight,
-                              verbose=(0, 2)[verbose > 1],
+                              verbose=(0, 1)[verbose > 1],
                               validation_data=validation_data)
                     end = time.time()
                     total = round((end - start) / 60, 3)

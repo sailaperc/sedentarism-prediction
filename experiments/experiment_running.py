@@ -211,6 +211,7 @@ def run_all_experiments(reverse_order:bool=False, verbose=0):
             plt.plot(times)
             plt.show()
             plt.close()
+        else: print(file_name)
         c += 1
         print('#' * 4)
         print(
