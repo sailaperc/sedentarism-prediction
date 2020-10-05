@@ -79,6 +79,12 @@ class Experiment(ABC):
             X_test, y_test = split_x_y(test_data_split)
             yield X_train, y_train, X_test, y_test
 
+    def reserve_file(self):
+        experiment_file = open(self.filename, 'wb')
+        pkl.dump(['almost empty'], experiment_file)
+        experiment_file.close()
+        print(f'File reserved {self.filename}')
+
     def save(self):
         experiment_file = open(self.filename, 'wb')
         pkl.dump(self.experiment_data, experiment_file)
@@ -106,6 +112,8 @@ class Experiment(ABC):
 
         if not file_exists(self.filename):
             print(f'Beginning experiment: ')
+            # avoids running an experiment if another precess is running it
+            self.reserve_file()
             self.prepare_data()
             self.experiment_data['scores'] = []
             self.experiment_data['time_to_train'] = []
@@ -157,7 +165,7 @@ class Experiment(ABC):
                               batch_size=batch_size,
                               epochs=nb_epochs,
                               # class_weight=class_weight,
-                              verbose=(0, 2)[verbose > 1],
+                              verbose=(0, 1)[verbose > 1],
                               validation_data=validation_data)
                     end = time.time()
                     total = round((end - start) / 60, 3)
