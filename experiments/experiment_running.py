@@ -162,7 +162,7 @@ def get_combinations(reverse_order):
     rever_order is used to run a second process so both do not do the same experiment and avoid conflicts
     '''
     pois = ['per', 'imp']
-    archs = ['rnn', 'cnn', 'tcn', 'mlp']
+    archs = ['rnn', 'tcn', 'mlp']
     users = get_list_of_users()
     grans = [60,30]
     lags = [1, 2, 4, 8]
