@@ -162,7 +162,7 @@ def get_combinations(reverse_order):
     rever_order is used to run a second process so both do not do the same experiment and avoid conflicts
     '''
     pois = ['per', 'imp']
-    archs = ['rnn', 'cnn', 'tcn', 'mlp']
+    archs = ['rnn', 'tcn', 'mlp']
     users = get_list_of_users()
     grans = [60,30]
     lags = [1, 2, 4, 8]
@@ -174,7 +174,7 @@ def get_combinations(reverse_order):
     return combs
 
 
-def run_all_experiments(reverse_order:bool=False, verbose=0):
+def run_all_experiments(reverse_order:bool=False, **args):
     task_type = 'regression'
     closest = get_closests()
     c = 0
@@ -203,7 +203,7 @@ def run_all_experiments(reverse_order:bool=False, verbose=0):
                 experiment = ImpersonalExperiment(
                     model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
             experiment.run(2**nb_epochs, 2 **
-                            batch_size, verbose=verbose)
+                            batch_size, **args)
             if not experiment.déjà_fait:
                 experiment.save()
             times.append(experiment.get_total_time())
@@ -213,7 +213,7 @@ def run_all_experiments(reverse_order:bool=False, verbose=0):
             plt.close()
         else: print(file_name)
         c += 1
-        print('#' * 4)
         print(
             f'{c}/{cant_experiments} fishished experiments')
-        print('#' * 4)
+        print(('#' * 10 + '\n') * 3)
+        print('')
