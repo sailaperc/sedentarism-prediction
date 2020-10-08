@@ -147,7 +147,10 @@ def get_model(arch, *args,):
                      'cnn': create_cnn_model_fn,
                      'rnn': create_rnn_model_fn,
                      'tcn': create_tcn_model_fn}
-    return model_fn_dict[arch](*args)
+    fn = model_fn_dict[arch]
+    print(inspect.signature(fn))
+    model_fn = fn(*args)
+    return model_fn
 
 
 def get_model_info(arch, centroid, model_type):
@@ -196,7 +199,6 @@ def run_all_experiments(reverse_order:bool=False, **kargs):
             else:
                 model = get_model(
                     arch, *(model_info[:-2]+[nb_lags]))
-            print(inspect.signature(model))
             print(model_info)
             if poi == 'per':
                 experiment = PersonalExperiment(

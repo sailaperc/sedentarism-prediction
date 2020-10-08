@@ -15,6 +15,7 @@ import numpy as np
 from math import sqrt
 from keras import backend as K
 import numpy as np
+from tcn import tcn_full_summary
 
 
 class Experiment(ABC):
@@ -32,7 +33,7 @@ class Experiment(ABC):
         self.train_data = None
         self.test_data = None
         self.gran = get_granularity_from_minutes(self.nb_min)
-
+        self.arch = model_name
         self.name = f'_{self.task_type}_gran{self.gran}_period{self.period}_lags{self.nb_lags}_model-{model_name}_user{self.user}'
 
         if self.task_type == 'classification':
@@ -151,14 +152,11 @@ class Experiment(ABC):
                               y_train,
                               batch_size=batch_size,
                               epochs=nb_epochs,
-                              # class_weight=class_weight,
                               verbose=fit_verbose,
                               validation_data=validation_data)
                     end = time.time()
                     total = round((end - start) / 60, 3)
                     y_pred = model.predict(X_test)
-                    # if self.task_type == 'classification':
-                    #    y_pred = (y_pred > 0.5) * 1.0
                     score = self.scoring_func(y_test, y_pred)
 
                     self.experiment_data['scores'].append(round(score, 3))
@@ -174,7 +172,10 @@ class Experiment(ABC):
                         print(f'Time: {total}')
                         # print(f'Class weights are: {class_weight}')
                     if model_verbose==1:
-                        print(model.summary())
+                        if  self.arch=='tcn':
+                            tcn_full_summary(model, expand_residual_blocks=False)
+                        else: 
+                            model.summary()
                     del model
             if experiment_verbose > 0:
                 print(f"scores: {self.experiment_data['scores']}")
