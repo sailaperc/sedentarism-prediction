@@ -13,7 +13,7 @@ from tcn import TCN
 from utils.utils import file_exists
 import math
 from datetime import datetime
-
+import inspect
 from skopt import load
 
 import itertools
@@ -174,7 +174,7 @@ def get_combinations(reverse_order):
     return combs
 
 
-def run_all_experiments(reverse_order:bool=False, **args):
+def run_all_experiments(reverse_order:bool=False, **kargs):
     task_type = 'regression'
     closest = get_closests()
     c = 0
@@ -196,6 +196,8 @@ def run_all_experiments(reverse_order:bool=False, **args):
             else:
                 model = get_model(
                     arch, *(model_info[:-2]+[nb_lags]))
+            print(inspect.signature(model))
+            print(model_info)
             if poi == 'per':
                 experiment = PersonalExperiment(
                     model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
@@ -203,7 +205,7 @@ def run_all_experiments(reverse_order:bool=False, **args):
                 experiment = ImpersonalExperiment(
                     model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
             experiment.run(2**nb_epochs, 2 **
-                            batch_size, **args)
+                            batch_size, **kargs)
             if not experiment.déjà_fait:
                 experiment.save()
             times.append(experiment.get_total_time())

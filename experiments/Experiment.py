@@ -103,7 +103,7 @@ class Experiment(ABC):
         if self.déjà_fait:
             self.experiment_data = pkl.load(open(self.filename, 'rb'))
 
-    def run(self, nb_epochs=64, batch_size=64, with_class_weights=False, experiment_verbose=0, fit_verbose=0):
+    def run(self, nb_epochs=64, batch_size=64, with_class_weights=False, experiment_verbose=0, fit_verbose=0, model_verbose=0):
         print('*** ' * 10)
         print('Experiment is: ')
         print(self.name)
@@ -173,6 +173,8 @@ class Experiment(ABC):
                         print(f'Score: {round(score, 3)}')
                         print(f'Time: {total}')
                         # print(f'Class weights are: {class_weight}')
+                    if model_verbose==1:
+                        print(model.summary())
                     del model
             if experiment_verbose > 0:
                 print(f"scores: {self.experiment_data['scores']}")
