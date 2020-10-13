@@ -146,6 +146,16 @@ class Experiment(ABC):
                     model = self.model_fn()
                     tf.keras.backend.clear_session()
 
+                    es_callback = tf.keras.callbacks.EarlyStopping(
+                        monitor="val_loss",
+                        min_delta=0,
+                        patience=32,
+                        verbose=1,
+                        mode="min",
+                        baseline=None,
+                        restore_best_weights=True,
+                    )
+
                     validation_data = None
                     validation_data = (X_test, y_test)
                     model.fit(X_train,
@@ -153,7 +163,8 @@ class Experiment(ABC):
                               batch_size=batch_size,
                               epochs=nb_epochs,
                               verbose=fit_verbose,
-                              validation_data=validation_data)
+                              validation_data=validation_data,
+                              callbacks=[es_callback])
                     end = time.time()
                     total = round((end - start) / 60, 3)
                     y_pred = model.predict(X_test)
