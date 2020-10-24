@@ -2,12 +2,11 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 from utils.utils import get_user_data
-from preprocessing.datasets import get_clean_dataset
+from preprocessing.datasets import get_clean_dataset, get_lagged_dataset
 from preprocessing.various import get_activity_levels, addSedentaryLevel
 import pandas as pd
 import seaborn as sns
 from matplotlib import colors
-import seaborn as sns
 import locale
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
@@ -15,6 +14,16 @@ locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 sns.set_style("whitegrid")
 # to see what rcParams has changed with importing sns
 # [(k,p[k], p_changed[k]) for k in p if p[k]!=p_changed[k]]
+
+def get_hour_labels():
+    hours = []
+    for h in range(0,24):
+        if h<10:
+            str = '0{0}:00'.format(h)
+        else:
+            str = '{0}:00'.format(h)
+        hours.append(str)
+    return hours
 
 
 def plot_user_activity(user, mindate='2013-03-27 04:00:00', maxdate='2013-06-01 3:00:00',  df=None):
@@ -263,33 +272,36 @@ def plot_heatmap(metric, user=-1):
     plt.show()
 
 
-def plot_heatmaps_mean(users=[50, 31, 4]):
+def plot_heatmaps_mean(users):
     '''
     Plot heatmaps of 3 different user using the metric mean
 
     '''
+    nb_users = len(users)
 
-    df = get_clean_dataset()
-    metric = 'mean'
+    df = get_lagged_dataset()
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles',
             'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
+    width_ratios =  [15 for i in range(nb_users)] + [1]
     fig, axes = plt.subplots(
-        nrows=1, ncols=4,
-        figsize=(15, 4.4),
-        gridspec_kw={'width_ratios': [15, 15, 15, 1]}
+        nrows=1, ncols=nb_users+1,
+        figsize=(5 * nb_users, 4.4),
+        gridspec_kw={'width_ratios':width_ratios }
     )
 
     cbar_ax = axes[-1]
 
-    for i in range(0, 3):
+    for i in range(nb_users):
         user = users[i]
         ax = axes[i]
-        userdata = get_user_data(df, user)
+        if user>= 0 :
+            userdata = get_user_data(df, user)
+        else:
+            userdata = df
         userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
         userdata = userdata.mean()
         userdata = userdata.reset_index()
@@ -297,13 +309,16 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
             index='dayofweek', values='slevel', columns='hourofday')
         sns.heatmap(userdata,
                     ax=ax,
-                    vmin=1.3, vmax=2,
+                    vmin=1.3,
                     cmap='RdBu_r',
-                    cbar=True if i == 2 else False,
-                    linewidths=.05,
-                    cbar_ax=cbar_ax if i == 2 else None,
+                    cbar=True if i == nb_users-1 else False,
+                    linewidths=.1,
+                    cbar_ax=cbar_ax if i == nb_users-1 else None,
                     )
-        ax.set_title('Usuario {0}'.format(user))
+        if user>= 0 :
+            ax.set_title('Usuario {0}'.format(user))
+        else:
+            ax.set_title('Todos los usuarios')
         ax.set_ylabel('')
         ax.set_xlabel('')
         plt.sca(ax)
@@ -312,21 +327,25 @@ def plot_heatmaps_mean(users=[50, 31, 4]):
         else:
             ax.tick_params(labelleft=False, tick1On=False)
         plt.xticks(np.arange(0.5, 24.5),
-                   get_hour_labels(),
-                   rotation='vertical',
-                   )
-        ax.set_xlabel('Hora del día', fontsize=10)
+                    get_hour_labels(),
+                    rotation='vertical',
+                    )
         ax.tick_params(axis='x', which='major', labelsize=8)
 
     # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
     fig.text(0, .5, 'Día de la semana', va='center',
-             rotation='vertical', fontsize=14)
+                rotation='vertical', fontsize=14)
+
+    fig.text(0.5, 0, 'Hora del día', va='center',
+                rotation='horizontal', fontsize=14)
+
 
     # plt.xlabel('Day of week', fontsize=18, labelpad=23)
     # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
     # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.subplots_adjust(left=.5, bottom=.15, wspace=0, hspace=0)
+    plt.subplots_adjust(left=.06, bottom=.15, wspace=0.1, hspace=0)
     plt.show()
+
 
 
 def plot_heatmaps_std(users=[50, 31, 4]):
@@ -335,27 +354,31 @@ def plot_heatmaps_std(users=[50, 31, 4]):
 
     '''
 
+    nb_users = len(users)
+
     df = get_lagged_dataset()
-    metric = 'mean'
 
     df['hourofday'] = df.index.get_level_values(1).hour
     df['dayofweek'] = df.index.get_level_values(1).dayofweek
     # days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
     days = ['Lunes', 'Martes', 'Miércoles',
             'Jueves', 'Viernes', 'Sábado', 'Domingo']
-
+    width_ratios =  [15 for i in range(nb_users)] + [1]
     fig, axes = plt.subplots(
-        nrows=1, ncols=4,
-        figsize=(15, 4.4),
-        gridspec_kw={'width_ratios': [15, 15, 15, 1]}
+        nrows=1, ncols=nb_users+1,
+        figsize=(5 * nb_users, 4.4),
+        gridspec_kw={'width_ratios':width_ratios }
     )
 
     cbar_ax = axes[-1]
 
-    for i in range(0, 3):
+    for i in range(0, nb_users):
         user = users[i]
         ax = axes[i]
-        userdata = get_user_data(df, user)
+        if user >= 0: 
+            userdata = get_user_data(df, user)
+        else:
+            userdata = df
         userdata = userdata.groupby(['dayofweek', 'hourofday'])['slevel']
 
         userdata = userdata.std()
@@ -367,11 +390,14 @@ def plot_heatmaps_std(users=[50, 31, 4]):
                     ax=ax,
                     # vmin=1.3, vmax=2,
                     cmap='autumn_r',
-                    cbar=True if i == 2 else False,
-                    linewidths=.05,
-                    cbar_ax=cbar_ax if i == 2 else None,
+                    cbar=True if i == (nb_users-1) else False,
+                    linewidths=.1,
+                    cbar_ax=cbar_ax if i == (nb_users -1) else None,
                     )
-        ax.set_title('Usuario {0}'.format(user))
+        if user>= 0 :
+            ax.set_title('Usuario {0}'.format(user))
+        else:
+            ax.set_title('Todos los usuarios')
         ax.set_ylabel('')
         ax.set_xlabel('')
         plt.sca(ax)
@@ -383,17 +409,19 @@ def plot_heatmaps_std(users=[50, 31, 4]):
                    get_hour_labels(),
                    rotation='vertical',
                    )
-        ax.set_xlabel('Hora del día', fontsize=10)
         ax.tick_params(axis='x', which='major', labelsize=8)
 
     # fig.text(0.5, 0, 'Hora del día', ha='center', fontsize=14)
     fig.text(0, .5, 'Día de la semana', va='center',
              rotation='vertical', fontsize=14)
-
+    fig.text(0.5, 0, 'Hora del día', va='center',
+                rotation='horizontal', fontsize=14)
     # plt.xlabel('Day of week', fontsize=18, labelpad=23)
     # plt.ylabel('Hour of day', fontsize=18, labelpad=45)
     # fig.tight_layout(rect=[0, 0.03, 1, 0.95])
-    plt.subplots_adjust(left=.5, bottom=.15, wspace=0, hspace=0)
+    plt.subplots_adjust(left=.06, bottom=.15, wspace=0.1, hspace=0)
+
+
     plt.show()
 
 

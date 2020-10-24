@@ -5,7 +5,7 @@ from preprocessing.various import delete_user, makeDummies, addSedentaryLevel, d
 from preprocessing.studentlife_raw import get_studentlife_dataset
 
 
-def shift_data(df,  nb_lags, period, task_type, dropnan=False):
+def shift_data(df, nb_lags, period, task_type, dropnan=False):
     '''
     Creates the lagged dataset calling shift_hours for every lag and then combines all the lagged datasets
 
@@ -20,6 +20,7 @@ def shift_data(df,  nb_lags, period, task_type, dropnan=False):
     lags = range(period * nb_lags, 0, -period)
     # print('Generating {0} time-lags with period equal {1} ...'.format(number_of_lags, period))
     # input sequence (t-n, ... t-1)
+    # alors on dance
     result = pd.DataFrame(index=df.index)
     for i in lags:
         to_shift = df.shift(i)
@@ -34,7 +35,7 @@ def shift_data(df,  nb_lags, period, task_type, dropnan=False):
     return result
 
 
-def generate_lagged_dataset(file_name, task_type, nb_lags, period, nb_min, included_data='ws'):
+def generate_lagged_dataset(file_name, task_type, nb_lags, period, nb_min):
     '''
     Calls series_to_supervised for every user (otherwise user information would be merged) and then combines it.
     The resulting dataset is saved in the path 'pkl/datasets/gran{}_period{}_lags{}.pkl'
@@ -46,10 +47,10 @@ def generate_lagged_dataset(file_name, task_type, nb_lags, period, nb_min, inclu
             'classification'), 'Not a valid model type.'
     df = get_clean_dataset(nb_min=nb_min)
 
-    if included_data == 'wos':
-        df = delete_sleep_buckets(df)
-    if task_type == 'classification':
-        df = addSedentaryClasses(df)
+    #if included_data == 'wos':
+    #    df = delete_sleep_buckets(df)
+    #if task_type == 'classification':
+    #    df = addSedentaryClasses(df)
 
     list_dfs = [shift_data(get_user_data(df, i), nb_lags, period, task_type)
                 for i in df.index.get_level_values(0).drop_duplicates()]

@@ -1,7 +1,6 @@
 from sklearn.model_selection import train_test_split
 from utils.utils import get_user_data, get_not_user_data
 from sklearn.preprocessing import StandardScaler
-from preprocessing.datasets import get_lagged_dataset
 
 
 def split_x_y(data):
@@ -42,8 +41,4 @@ def get_train_test_data(model_type,  nb_lags=1, period=1, gran='1h', user=-1, st
     return x_train, y_train, x_test, y_test
 
 
-def get_list_of_users():
-    df = get_lagged_dataset()
-    l = list(df.index.get_level_values(0).drop_duplicates())
-    del df
-    return l
+

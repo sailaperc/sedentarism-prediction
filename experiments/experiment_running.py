@@ -15,8 +15,7 @@ import math
 from datetime import datetime
 import inspect
 from skopt import load
-
-import itertools
+from utils.utils import get_experiment_combinations
 
 import matplotlib.pyplot as plt
 
@@ -159,29 +158,11 @@ def get_model_info(arch, centroid, model_type):
     return sorted(zip(res.func_vals, res.x_iters))[0][1]
 
 
-def get_combinations(reverse_order):
-    '''
-    Get list of all experiments combinations given its caracteristics
-    rever_order is used to run a second process so both do not do the same experiment and avoid conflicts
-    '''
-    pois = ['per', 'imp']
-    archs = ['rnn', 'cnn', 'tcn', 'mlp']
-    users = get_list_of_users()
-    grans = [60,30]
-    lags = [1, 2, 4, 8]
-    periods = [1, 2, 4]
-    sets = [pois, archs,users, grans, lags, periods]
-    combs = list(itertools.product(*sets))
-    if reverse_order:
-        combs.reverse()
-    return combs
-
-
 def run_all_experiments(reverse_order:bool=False, **kargs):
     task_type = 'regression'
     closest = get_closests()
     c = 0
-    combs = get_combinations(reverse_order)
+    combs = get_experiment_combinations(reverse_order)
     cant_experiments = len(combs)
     times = []
     for poi, arch, user, gran, nb_lags, period in combs:
