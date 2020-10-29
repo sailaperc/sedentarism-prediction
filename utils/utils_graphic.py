@@ -347,7 +347,6 @@ def plot_heatmaps_mean(users):
     plt.show()
 
 
-
 def plot_heatmaps_std(users=[50, 31, 4]):
     '''
     Plot incredibly beautiful heatmaps of 3 different user using the metric mean
@@ -517,10 +516,8 @@ def plot_by_month(user):
 
 
 def plot_user_selection(k, min_buckets=0):
-    # TODO plot actual centroids
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
-    #d['count'] = (d['count'] - d['count'].min()) / ( d['count'].max() - d['count'].min() )
     d = d.loc[d['count']>min_buckets]
     nb_kmean = k
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
@@ -528,32 +525,23 @@ def plot_user_selection(k, min_buckets=0):
     y = 'Grupo ' + pd.Series(kmeans.predict(d).astype('str'))
     closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
     for i in closest:
-        y[i] = 'Seleccionado'
+        y[i] = 'Usuario seleccionado'
     print(closest)
-    df_kmeans = pd.DataFrame(kmeans.cluster_centers_, columns=d.columns)
-    #d = pd.concat([d,df_kmeans], axis=0)
-
-    #y = y.append(pd.Series(['Centroid'] * nb_kmean), ignore_index=True)
+    print(kmeans.cluster_centers_)
     y.index = d.index
     y = y.to_frame('y')
     d = pd.concat([d, y], axis=1)
-    # d['colors'] = 'r'
-    # d.loc[d['y']=='Grupo 1','colors'] = 'b'
-    # d.loc[d['y']=='Grupo 2','colors'] = 'o'
-    # d.loc[d['y']=='Centroid','colors'] = 'c'
-    # d.loc[d['y']=='Selec','colors'] = 'k'
-    #colors = list(d.colors)
-    d.columns = ['Cantidad buckets', 'Promedio MET', 'Std MET', 'Grupo']
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'Grupo']
     g = sns.relplot(x='Cantidad buckets',
                     y='Promedio MET',
                     hue='Grupo',
-                    size='Std MET',
+                    size='Desviacion Estándar MET',
                     sizes=(50, 350),
                     alpha=.6,
                     data=d)
 
     # array con userid cantbuckets y mean met de cada usuario seleccionado
-    to_annotate = d[(y == 'Seleccionado').values].reset_index(
+    to_annotate = d[(y == 'Usuario seleccionado').values].reset_index(
         drop=False).iloc[:, :3].values
     style = dict(size=10, color='black')
 
@@ -564,6 +552,7 @@ def plot_user_selection(k, min_buckets=0):
                       ha='center',
                       va='center',
                       **style)
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
 
 
     plt.show()
@@ -595,3 +584,4 @@ def plot_sin_cos_transformation_proof():
 
     df.sample(75).plot.scatter('Seno', 'Coseno',
                                title='Transformaciones trigonométricas').set_aspect('equal')
+
