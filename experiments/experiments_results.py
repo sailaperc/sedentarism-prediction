@@ -41,6 +41,7 @@ def get_experiments_data(with_y_test_pred=False):
     return df
 
 def generate_df_from_experiments():
+
     start = time.time()
     rows = []
     combs = get_experiment_combinations()
@@ -75,6 +76,59 @@ def generate_df_from_experiments():
 
 
     filename = './pkl/experiments/experiments_df.pkl'
-    os.remove(filename)
     df.to_pickle(filename)
     print(f'This took {round((time.time() - start)/60, 3)}')
+
+def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwargs):
+    '''
+    This function generates a table that ranks the specify comp_col columns
+    based on its performance (mean_score col) for all the users
+    
+    '''
+    df = get_experiments_data()
+
+    assert comp_col in df.columns, f'comp_col must be one of {df.columns}'
+    assert comp_col not in kwargs.keys() , f'comp_col cant be a filter keyword'
+    assert all(k in df.columns for k in kwargs.keys()) , f'kwargs must be one of {df.columns}'
+    
+    col_values = list(df[comp_col].drop_duplicates())
+    nb_values = len(col_values)
+    rank_col_names = [f'rank{i}' for i in range(1,nb_values+1)]
+    
+    if ix>=0:
+        rank_by = f'{rank_by}_{ix}'
+    else: rank_by = f'mean_{rank_by}'
+        
+
+    for k,v in kwargs.items():
+        df = df.loc[df[k]==v]
+    
+    rows = []
+    for bo in df[based_on].drop_duplicates():
+        sorted_scores = df.loc[(df[based_on]==bo)][[comp_col,rank_by]].sort_values(rank_by, ascending=True).drop_duplicates(subset=[comp_col])
+        best_based_on = sorted_scores.iloc[0:nb_values,0].values
+        best_rank_by = np.round(sorted_scores.iloc[0:nb_values,1].values,4)
+
+        row = {'bo': bo, 'best_based_on': best_based_on, 'best_rank_by': best_rank_by }
+        rows.append(row)
+
+    results = pd.DataFrame(rows)
+    results[rank_col_names] = pd.DataFrame(results.best_based_on.tolist(), index=results.index)
+    del results['best_based_on']
+
+    summarize = pd.DataFrame(columns=results.columns, index=col_values)
+    for i in summarize.columns:
+        for j in summarize.index.values:
+            summarize.at[j,i] = sum(results[i]==j)
+    del summarize['bo']
+    del summarize['best_rank_by']
+    return summarize, results
+
+def filter_exp(rank_by='score', ix=-1, **kwargs):
+    df = get_experiments_data()
+    for k,v in kwargs.items():
+        df = df.loc[df[k]==v]
+    if ix>=0:
+        rank_by = f'{rank_by}_{ix}'
+    else: rank_by = f'mean_{rank_by}'
+    return df.sort_values(by=rank_by)
