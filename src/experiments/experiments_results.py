@@ -35,7 +35,7 @@ def show_metric(title, ylabel, labels, data):
     plt.show()
 
 def get_experiments_data(with_y_test_pred=False):
-    df = pd.read_pickle('./pkl/experiments/experiments_df.pkl')
+    df = pd.read_pickle('../pkl/experiments/experiments_df.pkl')
     if not with_y_test_pred:
         return df.loc[:, [col for col in df.columns if col!='y_test_pred']]
     return df
@@ -47,7 +47,7 @@ def generate_df_from_experiments():
     combs = get_experiment_combinations()
     for poi, arch, user, gran, nb_lags, period in combs:
         name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
-        filename = f'./pkl/experiments/{name}.pkl'
+        filename = f'../pkl/experiments/{name}.pkl'
         #print(poi,arch,user,gran,nb_lags,period)
         exp_data = pkl.load(open(filename, 'rb'))
         #print(exp_data.keys())
@@ -75,7 +75,7 @@ def generate_df_from_experiments():
     del df['time_to_train']
 
 
-    filename = './pkl/experiments/experiments_df.pkl'
+    filename = '../pkl/experiments/experiments_df.pkl'
     df.to_pickle(filename)
     print(f'This took {round((time.time() - start)/60, 3)}')
 
@@ -85,6 +85,7 @@ def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwa
     based on its performance (mean_score col) for all the users
     
     '''
+    # TODO implement from agregation function
     df = get_experiments_data()
 
     assert comp_col in df.columns, f'comp_col must be one of {df.columns}'
@@ -98,7 +99,6 @@ def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwa
     if ix>=0:
         rank_by = f'{rank_by}_{ix}'
     else: rank_by = f'mean_{rank_by}'
-        
 
     for k,v in kwargs.items():
         df = df.loc[df[k]==v]
@@ -132,3 +132,70 @@ def filter_exp(rank_by='score', ix=-1, **kwargs):
         rank_by = f'{rank_by}_{ix}'
     else: rank_by = f'mean_{rank_by}'
     return df.sort_values(by=rank_by)
+
+def check_results_correctness():
+    # este codigo compara los datos de y_test de los experimentos y 
+    # los que estan en el dataset, para ver si concuerdan
+    # en algunos hay una diferencia de uno, pero nada mas
+    poi = 'per'
+    arch = 'mlp'
+    nb_lags = 4
+    period = 4
+    gran = 60
+    user = 32
+    df = get_experiments_data(with_y_test_pred=True)
+    exp = df.loc[((df.poi==poi) & (df.arch==arch) & (df.nb_lags==nb_lags) & (df.period == period) & (df.user==user) & (df.gran==gran))]
+    exp = exp.y_test_pred.values[0]
+    y_test, y_pred,shapes = get_test_predicted_arrays(exp, return_shapes=True)
+    print(y_test.shape, y_pred.shape)
+    dataset = get_lagged_dataset(user=user, nb_lags=nb_lags, period=period, nb_min=gran)
+    y_test_total = dataset.slevel.values
+    y_test_exp = y_test
+    nb_cases = y_test_total.shape[0]
+    nb_exp_cases = y_test_exp.shape[0]
+    diff = nb_cases - nb_exp_cases
+    print(f'total nb of cases: {nb_cases}')
+    print(f'total nb of cases in the exp: {nb_exp_cases}')
+    print(f'diff: {diff}')
+    y_test_total_cut = y_test_total[diff:]
+    print(y_test_total_cut.shape)
+    print(y_test_exp.shape)
+    new_df = pd.DataFrame(data={'total': y_test_total_cut, 'exp': y_test_exp})
+    shapes = list(np.cumsum(shapes))
+    shapes = [0] + shapes[:-1]
+    print(shapes)
+    for i in range(len(shapes)):
+        arr1 = y_test_total_cut[shapes[i]:shapes[i]+10]
+        arr2 = exp[i][0][:10]
+        new_df = pd.DataFrame(data={'total': arr1, 'exp': arr2})
+        print(new_df)        
+
+def get_test_predicted_arrays(exp_data, return_shapes=False):
+    zipped = zip(*exp_data)
+    l = list(zipped)
+    l[1] = [np.squeeze(a) for a in l[1]]
+    y_test = np.concatenate(l[0]) 
+    y_pred = np.concatenate(l[1])
+    shapes = [arr.shape[0] for arr in l[0]]
+    print(shapes) 
+    return y_test, y_pred, shapes
+
+def print_results(fromi=1, toi=5, archs=['rnn', 'tcn', 'cnn', 'mlp'], poi='per', user=32, lags=1, period=1, gran=60):
+    df = get_experiments_data(with_y_test_pred=True)
+    exp = df.loc[((df.poi==poi) & (df.user==user) & (df.nb_lags==lags) & (df.period==period) & (df.gran==gran))]
+    plt.close()
+    width = 2 + 2*(toi-fromi+1)
+    plt.figure(figsize=(width,4))
+    print(width)
+    first_pass = True
+    for arch in archs:
+        exp_arch = exp.loc[df.arch==arch,:]
+        exp_data = exp_arch.y_test_pred.values[0][fromi-1:toi]
+        y_test, y_pred = get_test_predicted_arrays(exp_data)
+        lw = .6
+        if first_pass:
+            plt.plot(y_test, label='Test', lw=lw)
+            first_pass = False
+        plt.plot(y_pred, label=f'Predicho ({arch})', lw=lw)
+    plt.legend()
+    plt.show()

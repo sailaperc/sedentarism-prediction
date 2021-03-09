@@ -99,7 +99,7 @@ def fitness(num_filters, kernel_size, dropout, use_skip_connections, use_batch_n
 
 
 # %%
-checkpoint_file = 'pkl/checkpoint_tcn_32_per.pkl'
+checkpoint_file = '../pkl/checkpoint_tcn_32_per.pkl'
 checkpoint_saver = CheckpointSaver(checkpoint_file, compress=9)
 
 

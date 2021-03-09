@@ -4,7 +4,8 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 from preprocessing.studentlife_raw import get_sensor_data, get_studentlife_dataset
-from preprocessing.datasets import get_clean_dataset
+from preprocessing.datasets import get_clean_dataset, get_lagged_dataset, get_user_data
+from scipy.stats import pearsonr
 sns.set_style("whitegrid")
 
 def plot_activity_logs_per_user(only_unknowns=True):
@@ -137,6 +138,7 @@ def print_tsd_info(sensor, freq):
     vals = grouped_per_hour_and_user.to_numpy()
     print(f'Average and std available logs for {freq}: {vals.mean()} / {vals.std()}')
     print(f'Min and max available logs for {freq}: {vals.min()} / {vals.max()}')
+    print('/n')
 
     del vals
     del df
@@ -160,13 +162,21 @@ def print_tsi_info(sensor, freq):
     else:
         start = 'start_timestamp'
         end = ' end_timestamp'
-
+    
     df['diff'] = df[end] - df[start]
 
     print(f'Promedio y desviación estándar del tamaño de los intervalos: '
           f'{ round(df["diff"].mean() / 3600, 3) } / {round(df["diff"].std() / 3600, 3) }')
     print(f'Maximo y minimo del tamaño de los intervalos: '
           f'{round(df["diff"].min() / 3600, 3)} / {round(df["diff"].max() / 3600, 3)}')
+    
+    def custom_func(df):
+        return df.loc[:,end].iloc[-1] - df.loc[:,start].iloc[0] 
+
+    total_time_elapsed = df.groupby('userId').apply(custom_func).sum()
+    approximated_interval_time = df['diff'].sum()
+
+    print('')
 
 
 def print_all_info():
@@ -243,7 +253,7 @@ def numerical_data_distribution():
     df['location_mean(t-1)']
 
     #%%
-    df_num_corr = df_num.corr()['slevel'][:-1] # -1 because the latest row is SalePrice
+    df_num_corr = df_num.corr()['slevel'][:-1] # 
     golden_features_list = df_num_corr.sort_values(ascending=False)
     print("There is {} strongly correlated values with SalePrice:\n{}".format(len(golden_features_list), golden_features_list))
     # %%
@@ -253,5 +263,29 @@ def numerical_data_distribution():
                     y_vars=['slevel'])
 
 
+def generate_MET_stadistics():
+    '''
+    Generates a dataframe with some useful information about all the users
+    columns: 'user', 'met', 'std', 'corr', 'nb_nulls'
+
+    '''
+
+    df = get_lagged_dataset()
+    things = list()
+    for u in df.index.get_level_values(0).drop_duplicates():
+        dfuser = get_user_data(df, u)
+        aux = dfuser.droplevel(0).loc[:, 'slevel']
+        idx = pd.date_range('2013-03-27 04:00:00', '2013-06-01 3:00:00', freq='h')
+        d = pd.DataFrame(index=idx)
+        d['slevel'] = aux
+        n = d.isna().sum()[0]
+        dfuser['hourofday'] = dfuser.index.get_level_values(1).hour
+        dfuser['dayofweek'] = dfuser.index.get_level_values(1).dayofweek
+        stats = dfuser.groupby(['dayofweek', 'hourofday'])['slevel'].agg(['mean', 'std']).dropna()
+        corr = pearsonr(stats['mean'], stats['std'])[0]
+
+        things.append([u, stats['mean'].mean(), stats['std'].mean(), corr, n])
+        # corrs.append(corr)
+    return pd.DataFrame(columns=['user', 'met', 'std', 'corr', 'nb_nulls'], data=things).sort_values('met')
 
 

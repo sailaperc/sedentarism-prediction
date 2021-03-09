@@ -4,7 +4,6 @@ from pandas.plotting import autocorrelation_plot
 from utils.utils_graphic import plot_by_week
 from utils.utils import get_user_data
 from preprocessing.studentlife_raw import get_studentlife_dataset, get_sensor_data
-from scipy.stats import pearsonr
 
 def some_f():
     df = get_studentlife_dataset()

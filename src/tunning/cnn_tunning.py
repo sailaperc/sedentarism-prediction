@@ -1,4 +1,6 @@
 #%%
+import sys
+sys.path.append('c:\\Users\\marsa\\Documents\\projects\\tesis-project\\experiments')
 from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -96,7 +98,7 @@ def fitness(num_filters, num_kernels, conv_dropout, num_dense_nodes, dense_dropo
     return score
 
 #%%
-checkpoint_file = 'pkl/checkpoint_cnn_32_imp.pkl' 
+checkpoint_file = '../../pkl/tunning/checkpoint_cnn_32_imp.pkl' 
 checkpoint_saver = CheckpointSaver(checkpoint_file, compress=9)
 
 #%%

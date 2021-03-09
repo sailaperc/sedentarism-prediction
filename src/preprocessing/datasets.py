@@ -69,7 +69,7 @@ def get_lagged_dataset(task_type='regression', user=-1, nb_lags=1, period=1, nb_
 
     '''
     gran = get_granularity_from_minutes(nb_min)
-    filename = f'pkl/lagged_datasets/{task_type}_gran{gran}_period{period}_lags{nb_lags}.pkl'
+    filename = f'../pkl/lagged_datasets/{task_type}_gran{gran}_period{period}_lags{nb_lags}.pkl'
     if not file_exists(filename):
         print('Lagged dataset not found.')
         print(
@@ -108,7 +108,7 @@ def get_clean_dataset(nb_min=60, dropna=False, delete_inconcitencies=True, with_
         the specified options, without saving it.
     '''
     gran = get_granularity_from_minutes(nb_min)
-    file_name = f'pkl/datasets/dataset_gran{gran}.pkl'
+    file_name = f'../pkl/datasets/dataset_gran{gran}.pkl'
     if not from_disc:
         print('Creating clean dataset on the fly.')
         return generate_clean_dataset(nb_min, file_name, dropna, delete_inconcitencies, with_dummies, from_disc)

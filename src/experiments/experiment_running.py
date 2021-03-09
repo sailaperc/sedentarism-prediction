@@ -8,25 +8,19 @@ from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import load_model
 from tensorflow.keras.layers import Dropout
-from utils.utils import get_granularity_from_minutes
-from tcn import TCN
-from utils.utils import file_exists
-import math
-from datetime import datetime
-import inspect
-from skopt import load
-from utils.utils import get_experiment_combinations
-
 import matplotlib.pyplot as plt
-
-from preprocessing.model_ready import get_list_of_users
-
-from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
-
-from preprocessing.datasets import get_clean_dataset
-from sklearn.cluster import KMeans
+from datetime import datetime
+from tcn import TCN
+import math
+import inspect
 import pandas as pd
+from skopt import load
+from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
+
+from utils.utils import get_granularity_from_minutes,get_experiment_combinations,file_exists,get_list_of_users
+from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
+from preprocessing.datasets import get_clean_dataset
 
 
 def create_cnn_model_fn(num_filters, num_kernels, conv_dropout, num_dense_nodes, dense_dropout):

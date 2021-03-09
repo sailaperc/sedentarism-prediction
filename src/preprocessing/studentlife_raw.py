@@ -49,7 +49,7 @@ def create_sensing_tables():
 
 
 def get_sensor_data(sensor) -> pd.DataFrame:
-    return downgrade_datatypes(pd.read_pickle(f'pkl/sensing_data/{sensor}.pkl'))
+    return downgrade_datatypes(pd.read_pickle(f'./../pkl/sensing_data/{sensor}.pkl'))
 
 
 def get_studentlife_dataset(nb_min):
