@@ -147,9 +147,46 @@ def get_model(arch, *args,):
 
 
 def get_model_info(arch, centroid, model_type):
-    checkpoint_file = f'pkl/tunning/checkpoint_{arch}_{centroid}_{model_type}.pkl'
+    checkpoint_file = f'../pkl/tunning/checkpoint_{arch}_{centroid}_{model_type}.pkl'
     res = load(checkpoint_file)
     return sorted(zip(res.func_vals, res.x_iters))[0][1]
+
+
+def run_experiment(poi, arch, user, gran, nb_lags, period, closest = None, task_type= 'regresshionn', times=[], **kargs):
+    name = f'_{task_type}_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
+    file_name = f'../pkl/experiments/{name}.pkl'
+    print(datetime.now())
+    
+    if closest is None: closest = get_closests()
+    
+    if not file_exists(file_name):
+        need_3d_input = (arch != 'mlp')
+        closest_centroid = closest[user]
+        model_info = get_model_info(
+            arch, closest_centroid, poi)
+        [nb_epochs, batch_size] = model_info[-2:]
+        if arch != 'tcn':
+            model = get_model(arch, *model_info[:-2])
+        else:
+            model = get_model(
+                arch, *(model_info[:-2]+[nb_lags]))
+        print(model_info)
+        if poi == 'per':
+            experiment = PersonalExperiment(
+                model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
+        else:
+            experiment = ImpersonalExperiment(
+                model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
+        experiment.run(2**nb_epochs, 2 **
+                        batch_size, **kargs)
+        if not experiment.déjà_fait:
+            experiment.save()
+        times.append(experiment.get_total_time())
+        del experiment
+        plt.plot(times)
+        plt.show()
+        plt.close()
+    else: print(file_name)
 
 
 def run_all_experiments(reverse_order:bool=False, **kargs):
@@ -160,37 +197,7 @@ def run_all_experiments(reverse_order:bool=False, **kargs):
     cant_experiments = len(combs)
     times = []
     for poi, arch, user, gran, nb_lags, period in combs:
-        name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
-        file_name = f'./pkl/experiments/{name}.pkl'
-        print(datetime.now())
-        if not file_exists(file_name):
-            need_3d_input = (arch != 'mlp')
-            closest_centroid = closest[user]
-            model_info = get_model_info(
-                arch, closest_centroid, poi)
-            [nb_epochs, batch_size] = model_info[-2:]
-            if arch != 'tcn':
-                model = get_model(arch, *model_info[:-2])
-            else:
-                model = get_model(
-                    arch, *(model_info[:-2]+[nb_lags]))
-            print(model_info)
-            if poi == 'per':
-                experiment = PersonalExperiment(
-                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
-            else:
-                experiment = ImpersonalExperiment(
-                    model, arch, task_type, user, nb_lags, period, gran, need_3d_input)
-            experiment.run(2**nb_epochs, 2 **
-                            batch_size, **kargs)
-            if not experiment.déjà_fait:
-                experiment.save()
-            times.append(experiment.get_total_time())
-            del experiment
-            plt.plot(times)
-            plt.show()
-            plt.close()
-        else: print(file_name)
+        run_experiment(poi, arch, user, gran, nb_lags, period, closest, task_type, times, **kargs)
         c += 1
         print(
             f'{c}/{cant_experiments} fishished experiments')
