@@ -30,13 +30,19 @@ def get_tunning_results(arch):
             best = [arch, u, poi, *r[1], r[0]]
             results.append(best)
 
+
     df_results = pd.DataFrame(data=results)
-    df_results.columns = ['arch', 'user', 'poi'] + h[arch]
+    df_results.columns = ['arch', 'Usuario', 'Personal/Impersonal'] + h[arch]
+    
     float_df = df_results.select_dtypes(include='float')
     float_cols = float_df.columns
-    for col in h[arch]:
-        if col in df_results.columns:
-            df_results[col] = 2 ** df_results[col]
     df_results[float_cols] = np.round(float_df,3)
-    df_results.style.hide_index()
+
+    int_df = df_results.select_dtypes(include='int64')
+    int_cols = int_df.columns
+    for col in h[arch]:
+        if col in int_df.columns:
+            int_df.loc[:,col] = 2 ** int_df[col]
+
+    df_results[int_cols] = int_df
     return  df_results
