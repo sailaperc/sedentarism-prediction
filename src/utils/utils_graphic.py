@@ -514,50 +514,6 @@ def plot_by_month(user):
         user), fontsize=20)
     plt.show()
 
-
-def plot_user_selection(k, min_buckets=0):
-    df = get_clean_dataset()
-    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
-    d = d.loc[d['count']>min_buckets]
-    nb_kmean = k
-    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
-
-    y = 'Grupo ' + pd.Series(kmeans.predict(d).astype('str'))
-    closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, d)
-    for i in closest:
-        y[i] = 'Usuario seleccionado'
-    print(closest)
-    print(kmeans.cluster_centers_)
-    y.index = d.index
-    y = y.to_frame('y')
-    d = pd.concat([d, y], axis=1)
-    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'Grupo']
-    g = sns.relplot(x='Cantidad buckets',
-                    y='Promedio MET',
-                    hue='Grupo',
-                    size='Desviacion Estándar MET',
-                    sizes=(50, 350),
-                    alpha=.6,
-                    data=d)
-
-    # array con userid cantbuckets y mean met de cada usuario seleccionado
-    to_annotate = d[(y == 'Usuario seleccionado').values].reset_index(
-        drop=False).iloc[:, :3].values
-    style = dict(size=10, color='black')
-
-    for i in range(to_annotate.shape[0]):
-        g.ax.annotate(int(to_annotate[i, 0]),
-                      xy=(to_annotate[i, 1],
-                          to_annotate[i, 2]),
-                      ha='center',
-                      va='center',
-                      **style)
-    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
-
-
-    plt.show()
-
-
 def plot_sin_cos_transformation_proof():
 
     def rand_times(n):
