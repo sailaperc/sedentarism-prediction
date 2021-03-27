@@ -11,3 +11,4 @@ dataset/
 logs/
 .ipynb_checkpoints/
 pkl/experiments/experiments_df.pkl
+pkl/experiments-gpu/experiments_df.pkl
