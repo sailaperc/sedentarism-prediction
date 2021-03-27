@@ -5,11 +5,16 @@ import numpy as np
 import random 
 import pandas as pd
 import pickle
-from utils.utils import get_granularity_from_minutes
-from utils.utils import get_list_of_users 
 import time
 import os 
-from utils.utils import get_experiment_combinations
+from matplotlib.ticker import MaxNLocator
+from matplotlib import lines
+from sklearn.cluster import KMeans
+from sklearn.metrics import pairwise_distances_argmin_min
+import seaborn as sns
+from preprocessing.datasets import get_clean_dataset
+from utils.utils import get_granularity_from_minutes, get_list_of_users, get_experiment_combinations
+from experiments.experiment_running import get_closests
 
 def get_classification_results(keywords):
     return [(f[0:-4], pkl.load(open(f'./pkl/results/{f}', 'rb'))) for f in listdir('./pkl/results') if all(f'_{k}' in f for k in keywords)]
@@ -34,23 +39,28 @@ def show_metric(title, ylabel, labels, data):
     plt.grid(True)
     plt.show()
 
-def get_experiments_data(with_y_test_pred=False):
-    df = pd.read_pickle('../pkl/experiments/experiments_df.pkl')
+def get_experiments_data(only_gpu, with_y_test_pred=False):
+    df = pd.read_pickle(f'../pkl/{get_experiments_directory(only_gpu)}/experiments_df.pkl')
     if not with_y_test_pred:
         return df.loc[:, [col for col in df.columns if col!='y_test_pred']]
     return df
 
-def generate_df_from_experiments():
+def get_experiments_directory(only_gpu):
+    return 'experiments-gpu' if only_gpu==True else 'experiments'
+
+def generate_df_from_experiments(only_gpu = True):
 
     start = time.time()
     rows = []
     combs = get_experiment_combinations()
+    closest = get_closests()
     for poi, arch, user, gran, nb_lags, period in combs:
         name = f'_regression_gran{get_granularity_from_minutes(gran)}_period{period}_lags{nb_lags}_model-{arch}_user{user}_{poi}'
-        filename = f'../pkl/experiments/{name}.pkl'
-        #print(poi,arch,user,gran,nb_lags,period)
+        print(name)
+        experiments_directory = get_experiments_directory(only_gpu)
+        filename = f'../pkl/{experiments_directory}/{name}.pkl'
         exp_data = pkl.load(open(filename, 'rb'))
-        #print(exp_data.keys())
+        centroid = closest[user]
         new_row = {
             'poi': poi,
             'arch': arch,
@@ -61,9 +71,11 @@ def generate_df_from_experiments():
             'scores': exp_data['scores'],
             'nb_params': exp_data['nb_params'],
             'y_test_pred': exp_data['y_test_pred'],
-            'time_to_train': exp_data['time_to_train']
+            'time_to_train': exp_data['time_to_train'],
+            'centroid': 'low_met' if centroid == 34 else 'high_met'
         }
         rows.append(new_row)
+
     df = pd.DataFrame(rows)
     df['mean_score'] = df.scores.apply(lambda x : np.mean(x))
     df['mean_time'] = df.time_to_train.apply(lambda x : np.mean(x))
@@ -75,18 +87,18 @@ def generate_df_from_experiments():
     del df['time_to_train']
 
 
-    filename = '../pkl/experiments/experiments_df.pkl'
+    filename = f'../pkl/{experiments_directory}/experiments_df.pkl'
     df.to_pickle(filename)
     print(f'This took {round((time.time() - start)/60, 3)}')
 
-def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwargs):
+def rank_results(only_gpu = False, comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwargs):
     '''
     This function generates a table that ranks the specify comp_col columns
     based on its performance (mean_score col) for all the users
     
     '''
     # TODO implement from agregation function
-    df = get_experiments_data()
+    df = get_experiments_data(only_gpu)
 
     assert comp_col in df.columns, f'comp_col must be one of {df.columns}'
     assert comp_col not in kwargs.keys() , f'comp_col cant be a filter keyword'
@@ -94,11 +106,12 @@ def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwa
     
     col_values = list(df[comp_col].drop_duplicates())
     nb_values = len(col_values)
-    rank_col_names = [f'rank{i}' for i in range(1,nb_values+1)]
+    rank_col_names = [f'Puesto {i}' for i in range(1,nb_values+1)]
     
-    if ix>=0:
-        rank_by = f'{rank_by}_{ix}'
-    else: rank_by = f'mean_{rank_by}'
+    if rank_by in ['score','time']:
+        if ix>=0:
+            rank_by = f'{rank_by}_{ix}'
+        else: rank_by = f'mean_{rank_by}'
 
     for k,v in kwargs.items():
         df = df.loc[df[k]==v]
@@ -124,10 +137,14 @@ def rank_results(comp_col='arch', rank_by='score', based_on='user', ix=-1, **kwa
     del summarize['best_rank_by']
     return summarize, results
 
-def filter_exp(rank_by='score', ix=-1, **kwargs):
-    df = get_experiments_data()
+def filter_exp(only_gpu=False, **kwargs):
+    df = get_experiments_data(only_gpu)
     for k,v in kwargs.items():
         df = df.loc[df[k]==v]
+    return df
+
+def order_exp_by(only_gpu=False, ix=-1, rank_by='score', **kwargs):
+    df = filter_exp(only_gpu, **kwargs)
     if ix>=0:
         rank_by = f'{rank_by}_{ix}'
     else: rank_by = f'mean_{rank_by}'
@@ -177,25 +194,131 @@ def get_test_predicted_arrays(exp_data, return_shapes=False):
     y_test = np.concatenate(l[0]) 
     y_pred = np.concatenate(l[1])
     shapes = [arr.shape[0] for arr in l[0]]
-    print(shapes) 
-    return y_test, y_pred, shapes
+    if return_shapes: 
+        return y_test, y_pred, shapes
+    else: 
+        return y_test, y_pred
 
 def print_results(fromi=1, toi=5, archs=['rnn', 'tcn', 'cnn', 'mlp'], poi='per', user=32, lags=1, period=1, gran=60):
-    df = get_experiments_data(with_y_test_pred=True)
+    df = get_experiments_data(False, with_y_test_pred=True)
     exp = df.loc[((df.poi==poi) & (df.user==user) & (df.nb_lags==lags) & (df.period==period) & (df.gran==gran))]
     plt.close()
-    width = 2 + 2*(toi-fromi+1)
+    width = 4 + 2*(toi-fromi+1)
     plt.figure(figsize=(width,4))
-    print(width)
     first_pass = True
     for arch in archs:
         exp_arch = exp.loc[df.arch==arch,:]
         exp_data = exp_arch.y_test_pred.values[0][fromi-1:toi]
-        y_test, y_pred = get_test_predicted_arrays(exp_data)
+        y_test, y_pred, shapes = get_test_predicted_arrays(exp_data, return_shapes=True)
         lw = .6
         if first_pass:
             plt.plot(y_test, label='Test', lw=lw)
             first_pass = False
-        plt.plot(y_pred, label=f'Predicho ({arch})', lw=lw)
+            acc_shapes = np.cumsum(np.array(shapes))
+            for shape in acc_shapes:
+                plt.axvline(shape, color='black', ls='--')
+            plt.xlim(0, acc_shapes[-1])
+        plt.plot(y_pred, label=f'Predicho ({arch.upper()})', lw=lw)
+    plt.axhline(1.5, color='red',ls=':')
+    plt.ylim(0,8.5)
+    plt.tick_params(
+        axis='x', which='both', bottom=False, top=False, labelbottom=False)
+    plt.ylabel('MET')
+    plt.tight_layout()
     plt.legend()
+    plt.show()
+
+def plot_iterations_time_pattern(max_minutes=None,**kwargs):
+    df = filter_exp(only_gpu=True, **kwargs)
+    column_names = [f'time_{i}' for i in range(5)]
+    plt.close()
+    ax = plt.figure(figsize=(6, 6)).gca()
+
+    archs_colors={'rnn': 'b', 'tcn': 'g', 'cnn': 'r', 'mlp': 'm'}
+    its = np.arange(1,6)
+    first_pass = True
+    for arch in archs_colors.keys():
+        exp_arch = df.loc[df.arch==arch,:]
+        
+        to_plot = exp_arch.loc[:, column_names].values.tolist()
+        for list in to_plot:
+            ax.plot(its, list, lw=.01, color=archs_colors[arch])
+            first_pass = False
+        first_pass = True
+
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_xlim(1,5)
+    if max_minutes != None: 
+        ax.set_ylim(0, max_minutes)
+    plt.ylabel('Tiempo')
+    plt.xlabel('Iteración')
+
+    handles = [lines.Line2D([], [], color=c,
+                            markersize=15, label=k.upper()) for k,c in archs_colors.items()]
+    plt.legend(loc='upper left', handles=handles)
+
+    plt.show()
+
+def plot_iterations_score_pattern(max_mse=None, **kwargs):
+    df = filter_exp(only_gpu=False, **kwargs)
+    column_names = [f'score_{i}' for i in range(5)]
+    plt.close()
+    ax = plt.figure(figsize=(6, 6)).gca()
+
+    archs_colors={'rnn': 'b', 'tcn': 'g', 'cnn': 'r', 'mlp': 'm'}
+    its = np.arange(1,6)
+    first_pass = True
+    for arch in archs_colors.keys():
+        exp_arch = df.loc[df.arch==arch,:]
+        
+        to_plot = exp_arch.loc[:, column_names].values.tolist()
+        for list in to_plot:
+            ax.plot(its, list, lw=.01, color=archs_colors[arch])
+            first_pass = False
+        first_pass = True
+
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax.set_xlim(1,5)
+    if max_mse != None: 
+        ax.set_ylim(0, max_mse)
+    plt.ylabel('MSE')
+    plt.xlabel('Iteración')
+
+    handles = [lines.Line2D([], [], color=c,
+                            markersize=15, label=k.upper()) for k,c in archs_colors.items()]
+    plt.legend(loc='upper left', handles=handles)
+
+    plt.show()
+
+
+
+def plot_clusters_performance(ix=-1, **kwargs):
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+
+    def get_mse_and_best_arch(x):
+        return x.sort_values(by='mean_score').loc[:,['mean_score','arch']].iloc[0,:]
+
+    df_exp = order_exp_by(only_gpu=False, ix=ix, **kwargs)
+    per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
+    per_user_best.arch = per_user_best.arch.str.upper()
+    d = pd.concat([d, per_user_best], axis=1)
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
+
+    colors={'RNN': 'b', 'TCN': 'g', 'CNN': 'r', 'MLP': 'm'}
+
+    g = sns.relplot(x='Cantidad buckets',
+                    y='Promedio MET',
+                    hue='Arquitectura',
+                    size='MSE',
+                    sizes=(100, 500),
+                    alpha=.6,
+                    data=d,
+                    palette=colors)
+
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
+
     plt.show()
