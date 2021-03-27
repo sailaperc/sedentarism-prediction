@@ -22,7 +22,6 @@ from utils.utils import get_granularity_from_minutes,get_experiment_combinations
 from experiments.Experiment import PersonalExperiment, ImpersonalExperiment
 from preprocessing.datasets import get_clean_dataset
 
-
 def create_cnn_model_fn(num_filters, num_kernels, conv_dropout, num_dense_nodes, dense_dropout):
     def create_model():
         model = Sequential(name='cnn')
@@ -115,26 +114,6 @@ def create_tcn_model_fn(num_filters, kernel_size, dropout, use_skip_connections,
     return create_model
 
 
-def get_closests():
-    '''
-    Returns a dictionary with the closest centroid for each user
-    '''
-    df = get_clean_dataset()
-    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
-    k = 2
-    nb_kmean = k
-    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
-    y = pd.DataFrame(data={'group': kmeans.predict(
-        d), 'user': d.reset_index().iloc[:, 0].values})
-    user_34_group = int(y.loc[y.user == 34, 'group'])
-    user_32_group = int(y.loc[y.user == 32, 'group'])
-    y.loc[y.group == user_34_group, 'group'] = 34
-    y.loc[y.group == user_32_group, 'group'] = 32
-    y = y.set_index('user').iloc[:, 0].to_dict()
-
-    return y
-
-
 def get_model(arch, *args,):
     model_fn_dict = {'mlp': create_mlp_model_fn,
                      'cnn': create_cnn_model_fn,
@@ -150,6 +129,25 @@ def get_model_info(arch, centroid, model_type):
     checkpoint_file = f'../pkl/tunning/checkpoint_{arch}_{centroid}_{model_type}.pkl'
     res = load(checkpoint_file)
     return sorted(zip(res.func_vals, res.x_iters))[0][1]
+
+
+def get_closests():
+    '''
+    Returns a dictionary with the closest centroid for each user
+    '''
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    k = 2
+    kmeans = KMeans(n_clusters=k).fit(d)
+    y = pd.DataFrame(data={'group': kmeans.predict(
+        d), 'user': d.reset_index().iloc[:, 0].values})
+    user_34_group = int(y.loc[y.user == 34, 'group'])
+    user_32_group = int(y.loc[y.user == 32, 'group'])
+    y.loc[y.group == user_34_group, 'group'] = 34
+    y.loc[y.group == user_32_group, 'group'] = 32
+    y = y.set_index('user').iloc[:, 0].to_dict()
+
+    return y
 
 
 def run_experiment(poi, arch, user, gran, nb_lags, period, closest = None, task_type= 'regresshionn', times=[], **kargs):
