@@ -7,6 +7,9 @@ from sklearn.metrics import pairwise_distances_argmin_min
 import seaborn as sns
 from preprocessing.datasets import get_clean_dataset
 from matplotlib import pyplot as plt
+sns.set_style("whitegrid")
+
+
 def get_tunning_results(arch):
    
     cnn_hypers = ['Nr. filtros', 'Tam. kernel', 'Dropout (conv)', 'Nr. nodos densos', 'Dropout (denso)', 'Nr. épocas', 'Tam. bache', 'MSE']

@@ -1,20 +1,21 @@
 from os import listdir
 import pickle as pkl
-import matplotlib.pyplot as plt
 import numpy as np
 import random 
 import pandas as pd
 import pickle
 import time
 import os 
-from matplotlib.ticker import MaxNLocator
 from matplotlib import lines
 from sklearn.cluster import KMeans
 from sklearn.metrics import pairwise_distances_argmin_min
+from matplotlib.ticker import MaxNLocator
+import matplotlib.pyplot as plt
 import seaborn as sns
+sns.set_style("whitegrid")
+
 from preprocessing.datasets import get_clean_dataset
-from utils.utils import get_granularity_from_minutes, get_list_of_users, get_experiment_combinations
-from experiments.experiment_running import get_closests
+
 
 def get_classification_results(keywords):
     return [(f[0:-4], pkl.load(open(f'./pkl/results/{f}', 'rb'))) for f in listdir('./pkl/results') if all(f'_{k}' in f for k in keywords)]
@@ -146,9 +147,9 @@ def filter_exp(only_gpu=False, **kwargs):
 def order_exp_by(only_gpu=False, ix=-1, rank_by='score', **kwargs):
     df = filter_exp(only_gpu, **kwargs)
     if ix>=0:
-        rank_by = f'{rank_by}_{ix}'
-    else: rank_by = f'mean_{rank_by}'
-    return df.sort_values(by=rank_by)
+        rank_by_col = f'{rank_by}_{ix}'
+    else: rank_by_col = f'mean_{rank_by}'
+    return df.sort_values(by=rank_by_col), rank_by_col
 
 def check_results_correctness():
     # este codigo compara los datos de y_test de los experimentos y 
@@ -190,6 +191,7 @@ def check_results_correctness():
 def get_test_predicted_arrays(exp_data, return_shapes=False):
     zipped = zip(*exp_data)
     l = list(zipped)
+    # falla si solo hay un caso
     l[1] = [np.squeeze(a) for a in l[1]]
     y_test = np.concatenate(l[0]) 
     y_pred = np.concatenate(l[1])
@@ -290,8 +292,6 @@ def plot_iterations_score_pattern(max_mse=None, **kwargs):
 
     plt.show()
 
-
-
 def plot_clusters_performance(ix=-1, **kwargs):
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
@@ -315,6 +315,107 @@ def plot_clusters_performance(ix=-1, **kwargs):
                     hue='Arquitectura',
                     size='MSE',
                     sizes=(100, 500),
+                    alpha=.6,
+                    data=d,
+                    palette=colors)
+
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
+
+    plt.show()
+
+
+def plot_clusters_performance(rank_by='score', ix=-1, **kwargs):
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+
+    def get_mse_and_best_arch(x):
+        return x.sort_values(by=rank_by_col).loc[:,[rank_by_col,'arch']].iloc[0,:]
+
+    df_exp, rank_by_col = order_exp_by(only_gpu=False, ix=ix, rank_by=rank_by, **kwargs)
+    per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
+    per_user_best.arch = per_user_best.arch.str.upper()
+    d = pd.concat([d, per_user_best], axis=1)
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
+
+    colors={'RNN': 'b', 'TCN': 'g', 'CNN': 'r', 'MLP': 'm'}
+
+    g = sns.relplot(x='Cantidad buckets',
+                    y='Promedio MET',
+                    hue='Arquitectura',
+                    size='MSE',
+                    sizes=(100, 500),
+                    alpha=.6,
+                    data=d,
+                    palette=colors)
+
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
+
+    plt.show()
+
+
+def plot_clusters_performance_without_arch(rank_by='score', ix=-1, **kwargs):
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+
+    def get_mse_and_best_arch(x):
+        return x.sort_values(by=rank_by_col).loc[:,[rank_by_col,'arch']].iloc[0,:]
+
+    df_exp, rank_by_col = order_exp_by(only_gpu=False, ix=ix, rank_by=rank_by, **kwargs)
+    per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
+    per_user_best.arch = per_user_best.arch.str.upper()
+    d = pd.concat([d, per_user_best], axis=1)
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
+
+    g = sns.relplot(x='Cantidad buckets',
+                    y='Promedio MET',
+                    size='MSE',
+                    sizes=(100, 500),
+                    alpha=.6,
+                    data=d)
+
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
+
+    plt.show()
+
+def plot_per_cluster_mse_diff_poi():
+    
+    ix=-1
+    rank_by='score'
+
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+    s, r = rank_results(only_gpu=False, comp_col='poi', based_on='user', rank_by='score')    
+    l = list(r.best_rank_by.apply(list).values)
+    l_zipped = list(zip(*l))
+    best_poi = np.array(l_zipped[0])
+    worst_poi = np.array(l_zipped[1])
+    diff = worst_poi - best_poi 
+    poi = r["Puesto 1"]
+
+    d['MSE'] = diff
+    d['POI'] = poi
+
+    d.loc[d.POI=='per','POI'] = 'Personal'
+    d.loc[d.POI=='imp','POI'] = 'Impersonal'
+    print(diff)
+    colors = {'Personal': 'r', 'Impersonal': 'b'}
+
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'Diferencia de MSE', 'POI']
+
+    g = sns.relplot(x='Cantidad buckets',
+                    y='Promedio MET',
+                    hue='POI',
+                    size='Diferencia de MSE',
+                    sizes=(50, 300),
                     alpha=.6,
                     data=d,
                     palette=colors)
