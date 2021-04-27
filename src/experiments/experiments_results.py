@@ -119,7 +119,10 @@ def rank_results(only_gpu = False, comp_col='arch', rank_by='score', based_on='u
     
     rows = []
     for bo in df[based_on].drop_duplicates():
-        sorted_scores = df.loc[(df[based_on]==bo)][[comp_col,rank_by]].sort_values(rank_by, ascending=True).drop_duplicates(subset=[comp_col])
+        experiments_subset = df.loc[(df[based_on]==bo)]
+        
+        sorted_scores = experiments_subset[[comp_col,rank_by]].sort_values(rank_by, ascending=True).drop_duplicates(subset=[comp_col])
+
         best_based_on = sorted_scores.iloc[0:nb_values,0].values
         best_rank_by = np.round(sorted_scores.iloc[0:nb_values,1].values,4)
 
@@ -136,6 +139,71 @@ def rank_results(only_gpu = False, comp_col='arch', rank_by='score', based_on='u
             summarize.at[j,i] = sum(results[i]==j)
     del summarize['bo']
     del summarize['best_rank_by']
+    return summarize, results
+
+def rank_results_agg_func(only_gpu = False, comp_col='arch', rank_by='score', based_on='user', ix=-1, agg_func = 'mean', **kwargs):
+    '''
+    This function generates a table that ranks the specify comp_col columns
+    based on its performance (mean_score col) for all the users
+    
+    '''
+    # TODO implement from agregation function
+    df = get_experiments_data(only_gpu)
+
+    assert comp_col in df.columns, f'comp_col must be one of {df.columns}'
+    assert comp_col not in kwargs.keys() , f'comp_col cant be a filter keyword'
+    assert all(k in df.columns for k in kwargs.keys()) , f'kwargs must be one of {df.columns}'
+    
+    col_values = list(df[comp_col].drop_duplicates())
+    nb_values = len(col_values)
+    rank_col_names = [f'Puesto {i}' for i in range(1,nb_values+1)]
+    
+    if rank_by in ['score','time']:
+        if ix>=0:
+            rank_by = f'{rank_by}_{ix}'
+        else: rank_by = f'mean_{rank_by}'
+
+    for k,v in kwargs.items():
+        df = df.loc[df[k]==v]
+    
+    rows = []
+    for bo in df[based_on].drop_duplicates():
+        experiments_subset = df.loc[(df[based_on]==bo)]
+        
+        if agg_func == 'mean':
+            agg_func_app = np.mean
+        elif agg_func == 'median':
+            agg_func_app = np.median
+        elif agg_func == 'max':
+            agg_func_app = np.max
+        elif agg_func == 'min':
+            agg_func_app = np.min
+            
+        grouped_exps = experiments_subset.loc[:,[comp_col,rank_by]].groupby(comp_col)
+        agg_func_apply = grouped_exps.agg([agg_func])
+        agg_func_apply.columns = [rank_by]
+
+        sorted_results = agg_func_apply.sort_values(by=rank_by, ascending=True)
+        #print(sorted_results)
+
+        sorted_results_cleaned = sorted_results.reset_index(drop=False)
+        #print(sorted_results_cleaned)
+
+        best_based_on = sorted_results_cleaned.iloc[0:nb_values,0].values
+        best_rank_by = np.round(sorted_results_cleaned.iloc[0:nb_values,1].values,4)
+
+        row = {'bo': bo, 'best_based_on': best_based_on, 'best_rank_by': best_rank_by }
+        rows.append(row)
+
+    results = pd.DataFrame(rows)
+    results[rank_col_names] = pd.DataFrame(results.best_based_on.tolist(), index=results.index)
+    del results['best_based_on']
+    summarize = pd.DataFrame(columns=results.columns, index=col_values)
+    del summarize['bo']
+    del summarize['best_rank_by']
+    for i in summarize.columns:
+        for j in summarize.index.values:
+            summarize.at[j,i] = sum(results[i]==j)
     return summarize, results
 
 def filter_exp(only_gpu=False, **kwargs):
@@ -292,38 +360,6 @@ def plot_iterations_score_pattern(max_mse=None, **kwargs):
 
     plt.show()
 
-def plot_clusters_performance(ix=-1, **kwargs):
-    df = get_clean_dataset()
-    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
-    nb_kmean = 2
-    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
-
-
-    def get_mse_and_best_arch(x):
-        return x.sort_values(by='mean_score').loc[:,['mean_score','arch']].iloc[0,:]
-
-    df_exp = order_exp_by(only_gpu=False, ix=ix, **kwargs)
-    per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
-    per_user_best.arch = per_user_best.arch.str.upper()
-    d = pd.concat([d, per_user_best], axis=1)
-    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
-
-    colors={'RNN': 'b', 'TCN': 'g', 'CNN': 'r', 'MLP': 'm'}
-
-    g = sns.relplot(x='Cantidad buckets',
-                    y='Promedio MET',
-                    hue='Arquitectura',
-                    size='MSE',
-                    sizes=(100, 500),
-                    alpha=.6,
-                    data=d,
-                    palette=colors)
-
-    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
-
-    plt.show()
-
-
 def plot_clusters_performance(rank_by='score', ix=-1, **kwargs):
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
@@ -355,12 +391,12 @@ def plot_clusters_performance(rank_by='score', ix=-1, **kwargs):
 
     plt.show()
 
-
 def plot_clusters_performance_without_arch(rank_by='score', ix=-1, **kwargs):
     df = get_clean_dataset()
     d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
     nb_kmean = 2
     kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
 
 
     def get_mse_and_best_arch(x):
@@ -370,15 +406,40 @@ def plot_clusters_performance_without_arch(rank_by='score', ix=-1, **kwargs):
     per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
     per_user_best.arch = per_user_best.arch.str.upper()
     d = pd.concat([d, per_user_best], axis=1)
-    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
+
+    df = get_clean_dataset()
+    e = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(e)
+    y = 'Grupo ' + pd.Series(kmeans.predict(e).astype('str'))
+    closest, _ = pairwise_distances_argmin_min(kmeans.cluster_centers_, e)
+    for i in closest:
+        y[i] = 'Usuario seleccionado'
+    y.index = d.index
+    y = y.to_frame('y')
+    d = pd.concat([d, y], axis=1)
+
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura', 'Grupo']
 
     g = sns.relplot(x='Cantidad buckets',
                     y='Promedio MET',
                     size='MSE',
+                    hue='Grupo',
                     sizes=(100, 500),
                     alpha=.6,
                     data=d)
 
+    to_annotate = d.loc[(d['Grupo']=='Usuario seleccionado'),:].reset_index(drop=False).iloc[:, :3].values
+
+    style = dict(size=10, color='black')
+
+    for i in range(to_annotate.shape[0]):
+        g.ax.annotate(int(to_annotate[i, 0]),
+                      xy=(to_annotate[i, 1],
+                          to_annotate[i, 2]),
+                      ha='center',
+                      va='center',
+                      **style)
     g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
 
     plt.show()
@@ -419,6 +480,33 @@ def plot_per_cluster_mse_diff_poi():
                     alpha=.6,
                     data=d,
                     palette=colors)
+
+    g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
+
+    plt.show()
+
+def plot_clusters_performance_by_lags(rank_by='score', ix=-1, **kwargs):
+    df = get_clean_dataset()
+    d = df.groupby(level=0)['slevel'].agg(['count', 'mean', 'std'])
+    nb_kmean = 2
+    kmeans = KMeans(n_clusters=nb_kmean).fit(d)
+
+    def get_mse_and_best_arch(x):
+        return x.sort_values(by=rank_by_col).loc[:,[rank_by_col,'nb_lags']].iloc[0,:]
+
+    df_exp, rank_by_col = order_exp_by(only_gpu=False, ix=ix, rank_by=rank_by, **kwargs)
+    per_user_best = df_exp.groupby('user').apply(get_mse_and_best_arch) 
+    per_user_best.nb_lags = per_user_best.nb_lags.apply(str)
+    d = pd.concat([d, per_user_best], axis=1)
+    d.columns = ['Cantidad buckets', 'Promedio MET','Desviacion Estándar MET', 'MSE', 'Arquitectura']
+
+    g = sns.relplot(x='Cantidad buckets',
+                    y='Promedio MET',
+                    hue='Arquitectura',
+                    size='MSE',
+                    sizes=(100, 500),
+                    alpha=.6,
+                    data=d)
 
     g.ax.scatter(kmeans.cluster_centers_[:,0], kmeans.cluster_centers_[:,1], c='r', marker='x')
 
